@@ -3,7 +3,7 @@ import toast, { Toaster } from 'react-hot-toast'
 import { healthCheck, getStatus, startMotor, stopMotor, exportToSheets, heartbeat, isOnline } from './api'
 
 // App version
-const APP_VERSION = '0.1.0'
+const APP_VERSION = '0.1.1'
 
 // Heartbeat interval (30 seconds)
 const HEARTBEAT_INTERVAL = 30000
@@ -265,7 +265,10 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-6 relative">
       <Toaster
-        position="top-center"
+        position="bottom-center"
+        containerStyle={{
+          bottom: 80
+        }}
         toastOptions={{
           duration: 3000,
           style: {
@@ -284,9 +287,9 @@ function App() {
       )}
 
       {/* Header with Logo */}
-      <div className="absolute top-6 left-6 flex items-center gap-3">
-        <img src="/favicon.svg" alt="Motor Tracker" className="w-8 h-8" />
-        <span className="text-slate-400 font-medium hidden sm:block">Motor Tracker</span>
+      <div className="absolute top-6 left-6 flex items-center gap-2">
+        <img src="/favicon.png" alt="Motor Tracker" className="w-8 h-8" />
+        <span className="text-slate-400 font-medium text-sm sm:text-base">Motor Tracker</span>
       </div>
 
       {/* Settings Button */}
@@ -329,8 +332,8 @@ function App() {
                   onClick={handleExport}
                   disabled={isExporting || isOffline}
                   className={`w-full py-3 px-4 rounded-xl text-white font-semibold transition-all ${isExporting || isOffline
-                      ? 'bg-slate-600 cursor-not-allowed'
-                      : 'bg-green-600 hover:bg-green-500 active:scale-98'
+                    ? 'bg-slate-600 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-500 active:scale-98'
                     }`}
                 >
                   {isExporting ? (
