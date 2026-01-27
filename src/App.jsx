@@ -3,16 +3,17 @@ import toast, { Toaster } from 'react-hot-toast'
 import { healthCheck, getStatus, startMotor, stopMotor, exportToSheets, heartbeat, isOnline } from './api'
 
 // App version
-const APP_VERSION = '0.1.3'
-
-// Heartbeat interval (30 seconds)
-const HEARTBEAT_INTERVAL = 30000
+const APP_VERSION = '0.1.5'
 
 function App() {
   // Server state
   const [isServerWaking, setIsServerWaking] = useState(true)
   const [serverError, setServerError] = useState(null)
   const [isOffline, setIsOffline] = useState(!navigator.onLine)
+  const [isPageVisible, setIsPageVisible] = useState(!document.hidden)
+
+  // Responsive Toast Position
+  const [toastPosition, setToastPosition] = useState('bottom-center')
 
   // Motor state
   const [isRunning, setIsRunning] = useState(false)
@@ -28,6 +29,42 @@ function App() {
   // Refs for intervals
   const heartbeatRef = useRef(null)
   const timerRef = useRef(null)
+
+  // Handle screen resize for Toast position
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 640) {
+        setToastPosition('top-center')
+      } else {
+        setToastPosition('bottom-center')
+      }
+    }
+
+    // Initial check
+    handleResize()
+
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
+
+  // Page Visibility Detection
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      const isVisible = !document.hidden
+      setIsPageVisible(isVisible)
+
+      if (isVisible) {
+        console.log('👀 Tab active - Waking up sync...')
+        // Immediate sync when tab becomes visible
+        syncWithServer()
+      } else {
+        console.log('💤 Tab hidden - Pausing sync to save server hours')
+      }
+    }
+
+    document.addEventListener("visibilitychange", handleVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange)
+  }, [])
 
   // Online/offline detection
   useEffect(() => {
@@ -58,11 +95,14 @@ function App() {
       const data = await heartbeat()
       setIsRunning(data.isRunning)
       setTempStartTime(data.startTime)
-      setElapsedTime(data.elapsedSeconds)
+      // Only force update elapsed time if significantly different to avoid jitter
+      if (Math.abs(data.elapsedSeconds - elapsedTime) > 2) {
+        setElapsedTime(data.elapsedSeconds)
+      }
     } catch (error) {
       console.error('Heartbeat failed:', error)
     }
-  }, [])
+  }, [elapsedTime])
 
   // Wake up server and get initial status
   useEffect(() => {
@@ -100,22 +140,28 @@ function App() {
     return () => { isMounted = false }
   }, [])
 
-  // Heartbeat ping every 30s when motor is running
+  // Smart Heartbeat Logic
   useEffect(() => {
-    if (isRunning && !isOffline) {
-      heartbeatRef.current = setInterval(syncWithServer, HEARTBEAT_INTERVAL)
-    } else {
-      if (heartbeatRef.current) {
-        clearInterval(heartbeatRef.current)
-      }
+    // Stop all polling if offline or tab hidden (Huge savings for free tier)
+    if (isOffline || !isPageVisible) {
+      if (heartbeatRef.current) clearInterval(heartbeatRef.current)
+      return
     }
+
+    // Determine poll interval based on state
+    // ON = 3s (Fast sync), OFF = 15s (Idle check)
+    const intervalTime = isRunning ? 3000 : 15000
+
+    console.log(`⏱️ Polling every ${intervalTime / 1000}s`)
+
+    heartbeatRef.current = setInterval(syncWithServer, intervalTime)
 
     return () => {
       if (heartbeatRef.current) {
         clearInterval(heartbeatRef.current)
       }
     }
-  }, [isRunning, isOffline, syncWithServer])
+  }, [isRunning, isOffline, isPageVisible, syncWithServer])
 
   // Local timer - updates every second while motor is running
   useEffect(() => {
@@ -156,6 +202,8 @@ function App() {
           setElapsedTime(0)
           setLastActionTime(result.startTimeFormatted)
           toast.success('Motor started!', { icon: '🟢' })
+          // Force immediate sync to update other clients faster
+          setTimeout(syncWithServer, 500)
         }
       } else {
         // Stopping the motor
@@ -165,6 +213,8 @@ function App() {
           setTempStartTime(null)
           setLastActionTime(result.log.endTime)
           toast.success(`Motor stopped. Ran for ${result.log.durationMinutes} minutes`, { icon: '🔴' })
+          // Force immediate sync
+          setTimeout(syncWithServer, 500)
         }
       }
     } catch (error) {
@@ -172,7 +222,7 @@ function App() {
     } finally {
       setIsProcessing(false)
     }
-  }, [isRunning, isProcessing, isOffline])
+  }, [isRunning, isProcessing, isOffline, syncWithServer])
 
   const handleExport = async () => {
     if (isOffline) {
@@ -281,9 +331,10 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-6 relative">
       <Toaster
-        position="bottom-center"
+        position={toastPosition}
         containerStyle={{
-          bottom: 80
+          bottom: toastPosition === 'bottom-center' ? 80 : undefined,
+          top: toastPosition === 'top-center' ? 20 : undefined
         }}
         toastOptions={{
           duration: 3000,
@@ -348,8 +399,8 @@ function App() {
                   onClick={handleExport}
                   disabled={isExporting || isOffline}
                   className={`w-full py-3 px-4 rounded-xl text-white font-semibold transition-all ${isExporting || isOffline
-                    ? 'bg-slate-600 cursor-not-allowed'
-                    : 'bg-green-600 hover:bg-green-500 active:scale-98'
+                      ? 'bg-slate-600 cursor-not-allowed'
+                      : 'bg-green-600 hover:bg-green-500 active:scale-98'
                     }`}
                 >
                   {isExporting ? (
