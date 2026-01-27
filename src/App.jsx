@@ -3,7 +3,7 @@ import toast, { Toaster } from 'react-hot-toast'
 import { healthCheck, getStatus, startMotor, stopMotor, exportToSheets, heartbeat, isOnline } from './api'
 
 // App version
-const APP_VERSION = '0.1.2'
+const APP_VERSION = '0.1.3'
 
 // Heartbeat interval (30 seconds)
 const HEARTBEAT_INTERVAL = 30000
@@ -303,9 +303,9 @@ function App() {
       )}
 
       {/* Header with Logo */}
-      <div className="absolute top-6 left-6 flex items-center gap-2">
-        <img src="/favicon.png" alt="Motor Tracker" className="w-8 h-8" />
-        <span className="brand-title text-base sm:text-lg">Motor Tracker</span>
+      <div className="absolute top-6 left-6 flex items-center gap-3">
+        <img src="/logo.svg" alt="Motor Tracker" className="w-10 h-10 drop-shadow-[0_0_8px_rgba(59,130,246,0.5)]" />
+        <span className="brand-title text-xl sm:text-2xl tracking-wider pt-1">Motor Tracker</span>
       </div>
 
       {/* Settings Button */}
