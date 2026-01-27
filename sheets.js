@@ -106,16 +106,70 @@ export async function exportToSheets(logs) {
     try {
         const sheets = await getSheetsClient();
 
-        // Prepare rows for the sheet
+        // Define headers
+        const headers = ['Date', 'Start Time', 'End Time', 'Duration (min)', 'Exported At'];
+
+        // Check if headers already exist (check first row)
+        const existingData = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: 'Sheet1!A1:E1'
+        });
+
+        const firstRow = existingData.data.values?.[0] || [];
+        const headersExist = firstRow.length > 0 && firstRow[0] === headers[0];
+
+        // If headers don't exist, add them first
+        if (!headersExist) {
+            console.log('Adding headers to sheet...');
+            await sheets.spreadsheets.values.update({
+                spreadsheetId: SHEET_ID,
+                range: 'Sheet1!A1:E1',
+                valueInputOption: 'USER_ENTERED',
+                resource: {
+                    values: [headers]
+                }
+            });
+
+            // Format header row (bold + background color)
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId: SHEET_ID,
+                resource: {
+                    requests: [
+                        {
+                            repeatCell: {
+                                range: {
+                                    sheetId: 0,
+                                    startRowIndex: 0,
+                                    endRowIndex: 1,
+                                    startColumnIndex: 0,
+                                    endColumnIndex: 5
+                                },
+                                cell: {
+                                    userEnteredFormat: {
+                                        backgroundColor: { red: 0.2, green: 0.5, blue: 0.8 },
+                                        textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
+                                        horizontalAlignment: 'CENTER'
+                                    }
+                                },
+                                fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)'
+                            }
+                        }
+                    ]
+                }
+            });
+            console.log('✅ Headers added and formatted');
+        }
+
+        // Prepare data rows
         const rows = logs.map(log => [
             log.date,
             log.startTime,
             log.endTime,
             log.durationMinutes,
-            `${formatDateIST(new Date())} ${formatTimeIST(new Date())}` // Exported at
+            `${formatDateIST(new Date())} ${formatTimeIST(new Date())}`
         ]);
 
-        // Append to sheet
+        // Append data below existing content (never overwrites)
         await sheets.spreadsheets.values.append({
             spreadsheetId: SHEET_ID,
             range: 'Sheet1!A:E',
