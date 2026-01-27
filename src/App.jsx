@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import toast, { Toaster } from 'react-hot-toast'
+import ConfirmationModal from './components/ConfirmationModal'
 import { healthCheck, getStatus, startMotor, stopMotor, exportToSheets, heartbeat, isOnline } from './api'
 
 // App version
-const APP_VERSION = '0.1.6'
+const APP_VERSION = '0.1.7'
 
 function App() {
   // Server state
@@ -26,9 +27,20 @@ function App() {
   const [showSettings, setShowSettings] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
 
+  // Confirmation Modal State
+  const [confirmation, setConfirmation] = useState({
+    isOpen: false,
+    title: '',
+    message: '',
+    onConfirm: () => { },
+    isDangerous: false,
+    confirmText: 'Confirm'
+  })
+
   // Refs for intervals
   const heartbeatRef = useRef(null)
   const timerRef = useRef(null)
+  const elapsedTimeRef = useRef(0) // Fix: Track elapsed time in reg to avoid re-renders
 
   // Handle screen resize for Toast position
   useEffect(() => {
@@ -112,13 +124,14 @@ function App() {
       }
 
       // Only force update elapsed time if significantly different to avoid jitter
-      if (Math.abs(data.elapsedSeconds - elapsedTime) > 2) {
+      if (Math.abs(data.elapsedSeconds - elapsedTimeRef.current) > 2) {
         setElapsedTime(data.elapsedSeconds)
+        elapsedTimeRef.current = data.elapsedSeconds
       }
     } catch (error) {
       console.error('Heartbeat failed:', error)
     }
-  }, [elapsedTime, isRunning])
+  }, [isRunning]) // Removed elapsedTime dependency to fix heartbeat reset bug!
 
   // Wake up server and get initial status
   useEffect(() => {
@@ -136,6 +149,7 @@ function App() {
           setIsRunning(data.isRunning)
           setTempStartTime(data.startTime)
           setElapsedTime(data.elapsedSeconds)
+          elapsedTimeRef.current = data.elapsedSeconds // Sync ref
           setIsServerWaking(false)
 
           // Show toast if motor was already running
@@ -183,7 +197,11 @@ function App() {
   useEffect(() => {
     if (isRunning) {
       timerRef.current = setInterval(() => {
-        setElapsedTime(prev => prev + 1)
+        setElapsedTime(prev => {
+          const newVal = prev + 1
+          elapsedTimeRef.current = newVal
+          return newVal
+        })
       }, 1000)
     } else {
       if (timerRef.current) {
@@ -216,6 +234,7 @@ function App() {
           setIsRunning(true)
           setTempStartTime(result.startTime)
           setElapsedTime(0)
+          elapsedTimeRef.current = 0
           setLastActionTime(result.startTimeFormatted)
           toast.success('Motor started!', { icon: '🟢' })
           // Force immediate sync to update other clients faster
@@ -257,14 +276,20 @@ function App() {
     }
 
     // Confirmation check
-    const confirmed = window.confirm(
-      'Export all logs to Google Sheets?\n\nThis will:\n• Send logs to your Google Sheet\n• Clear local logs after export\n\nProceed?'
-    )
+    setConfirmation({
+      isOpen: true,
+      title: 'Export Logs?',
+      message: 'This will export all logs to your Google Sheet and clear them from the local device.\n\nLogs are also automatically exported every night at midnight.',
+      confirmText: 'Export Now',
+      isDangerous: false,
+      onConfirm: async () => {
+        setConfirmation(prev => ({ ...prev, isOpen: false }))
+        await performExport()
+      }
+    })
+  }
 
-    if (!confirmed) {
-      return
-    }
-
+  const performExport = async () => {
     setIsExporting(true)
 
     try {
@@ -543,6 +568,15 @@ function App() {
       <footer className="absolute bottom-6 text-slate-500 text-sm">
         Motor Tracker v{APP_VERSION}
       </footer>
+      <ConfirmationModal
+        isOpen={confirmation.isOpen}
+        title={confirmation.title}
+        message={confirmation.message}
+        confirmText={confirmation.confirmText}
+        isDangerous={confirmation.isDangerous}
+        onConfirm={confirmation.onConfirm}
+        onCancel={() => setConfirmation(prev => ({ ...prev, isOpen: false }))}
+      />
     </div>
   )
 }
