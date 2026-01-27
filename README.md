@@ -1,16 +1,106 @@
-# React + Vite
+# Motor Tracker ⚡
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern, production-ready full-stack application to track and monitor home water pump motor usage.
 
-Currently, two official plugins are available:
+![License](https://img.shields.io/badge/license-MIT-blue.svg)
+![Version](https://img.shields.io/badge/version-v0.1.4-green.svg)
+![Status](https://img.shields.io/badge/status-production-success.svg)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## ✨ Features
 
-## React Compiler
+- **Real-time Monitoring**: Live status (ON/OFF) and duration timer
+- **Multi-Device Sync**: Control from phone, view on PC instantly (WebSocket-like 30s heartbeat)
+- **Data Persistence**: Json-based storage system with auto-archiving
+- **Google Sheets Integration**: 
+  - 🕛 Automatic daily export at midnight (IST)
+  - 📊 Manual export button
+  - 📝 formatted logs with duration calculations
+- **Smart Error Handling**:
+  - 🔄 Auto-retry on network failure
+  - 📡 Offline detection & queueing
+  - 🛡️ Session recovery after browser close/refresh
+- **Modern UI**:
+  - 🎨 Glassmorphism & dark mode aesthetics
+  - ⚡ React + Vite for lightning speed
+  - 📱 Fully responsive mobile-first design
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠️ Tech Stack
 
-## Expanding the ESLint configuration
+**Frontend**
+- React 19 + Vite
+- TailwindCSS v4
+- React Hot Toast
+- Google Fonts (Inter + Russo One)
+- Lucide React Icons
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+**Backend**
+- Node.js + Express
+- Google Sheets API v4
+- Node-Cron (Scheduling)
+- File-based JSON Database
+
+**Deployment**
+- Render (Web Service)
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 20+
+- Google Cloud Service Account (credentials.json)
+
+### Installation
+
+1. **Clone & Install**
+   ```bash
+   git clone https://github.com/yourusername/motor-tracker.git
+   cd motor-tracker
+   npm install
+   ```
+
+2. **Setup Credentials**
+   - Place your Google Service Account key as `credentials.json` in the root folder.
+   - Create a `.env` file:
+     ```env
+     PORT=3001
+     GOOGLE_SHEET_ID=your_sheet_id_here
+     ```
+
+3. **Run Locally**
+   ```bash
+   npm run dev:all
+   ```
+   This runs both Frontend (http://localhost:5173) and Backend (http://localhost:3001).
+
+## 🌍 Deployment
+
+### Deploy to Render
+
+1. **Create Web Service**
+   - Connect GitHub repo
+   - Build Command: `npm install`
+   - Start Command: `node server.js`
+
+2. **Environment Variables**
+   - `GOOGLE_SHEET_ID`: Just the ID string (not URL)
+   - `GOOGLE_CREDENTIALS`: Paste the **entire content** of `credentials.json`
+
+## 📁 Project Structure
+
+```
+├── data/               # Persistent JSON storage
+│   ├── status.json     # Current motor state
+│   ├── logs.json       # Active logs
+│   └── archive.json    # Archive stats
+├── public/             # Static assets (favicons)
+├── src/
+│   ├── components/     # React components
+│   ├── api.js          # API client with retry logic
+│   ├── App.jsx         # Main application logic
+│   └── index.css       # Global styles & fonts
+├── server.js           # Express API server
+└── sheets.js           # Google Sheets integration
+```
+
+## 📝 License
+
+This project is open source and available under the [MIT License](LICENSE).
