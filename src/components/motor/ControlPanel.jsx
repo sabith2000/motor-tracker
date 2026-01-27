@@ -14,7 +14,6 @@ export default function ControlPanel({
     setTempStartTime,
     setElapsedTime,
     elapsedTimeRef,
-    elapsedTimeRef,
     setLastActionTime,
     lastActionTime
 }) {
