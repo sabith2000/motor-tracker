@@ -1,10 +1,18 @@
-import { useState, useEffect, useCallback } from 'react'
-import { healthCheck, getStatus, startMotor, stopMotor, exportToSheets } from './api'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import toast, { Toaster } from 'react-hot-toast'
+import { healthCheck, getStatus, startMotor, stopMotor, exportToSheets, heartbeat, isOnline } from './api'
+
+// App version
+const APP_VERSION = '0.1.0'
+
+// Heartbeat interval (30 seconds)
+const HEARTBEAT_INTERVAL = 30000
 
 function App() {
   // Server state
   const [isServerWaking, setIsServerWaking] = useState(true)
   const [serverError, setServerError] = useState(null)
+  const [isOffline, setIsOffline] = useState(!navigator.onLine)
 
   // Motor state
   const [isRunning, setIsRunning] = useState(false)
@@ -16,7 +24,45 @@ function App() {
   // Settings modal state
   const [showSettings, setShowSettings] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
-  const [exportMessage, setExportMessage] = useState(null)
+
+  // Refs for intervals
+  const heartbeatRef = useRef(null)
+  const timerRef = useRef(null)
+
+  // Online/offline detection
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false)
+      toast.success('Back online!', { icon: '🌐' })
+      // Resync with server
+      syncWithServer()
+    }
+
+    const handleOffline = () => {
+      setIsOffline(true)
+      toast.error('No internet connection', { icon: '📡', duration: 5000 })
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  // Sync with server (heartbeat)
+  const syncWithServer = useCallback(async () => {
+    try {
+      const data = await heartbeat()
+      setIsRunning(data.isRunning)
+      setTempStartTime(data.startTime)
+      setElapsedTime(data.elapsedSeconds)
+    } catch (error) {
+      console.error('Heartbeat failed:', error)
+    }
+  }, [])
 
   // Wake up server and get initial status
   useEffect(() => {
@@ -27,13 +73,19 @@ function App() {
         // First, health check to wake server
         await healthCheck()
 
-        // Then get status
-        const status = await getStatus()
+        // Get status via heartbeat (includes elapsed time)
+        const data = await heartbeat()
 
         if (isMounted) {
-          setIsRunning(status.isRunning)
-          setTempStartTime(status.tempStartTime)
+          setIsRunning(data.isRunning)
+          setTempStartTime(data.startTime)
+          setElapsedTime(data.elapsedSeconds)
           setIsServerWaking(false)
+
+          // Show toast if motor was already running
+          if (data.isRunning) {
+            toast.success(`Motor is running since ${data.startTimeFormatted}`, { icon: '⚡', duration: 4000 })
+          }
         }
       } catch (error) {
         if (isMounted) {
@@ -48,24 +100,49 @@ function App() {
     return () => { isMounted = false }
   }, [])
 
-  // Live timer - updates every second while motor is running
+  // Heartbeat ping every 30s when motor is running
   useEffect(() => {
-    let interval = null
-    if (isRunning && tempStartTime) {
-      // Calculate initial elapsed time
-      setElapsedTime(Math.floor((Date.now() - new Date(tempStartTime).getTime()) / 1000))
+    if (isRunning && !isOffline) {
+      heartbeatRef.current = setInterval(syncWithServer, HEARTBEAT_INTERVAL)
+    } else {
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current)
+      }
+    }
 
-      interval = setInterval(() => {
-        setElapsedTime(Math.floor((Date.now() - new Date(tempStartTime).getTime()) / 1000))
+    return () => {
+      if (heartbeatRef.current) {
+        clearInterval(heartbeatRef.current)
+      }
+    }
+  }, [isRunning, isOffline, syncWithServer])
+
+  // Local timer - updates every second while motor is running
+  useEffect(() => {
+    if (isRunning) {
+      timerRef.current = setInterval(() => {
+        setElapsedTime(prev => prev + 1)
       }, 1000)
     } else {
-      setElapsedTime(0)
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
     }
-    return () => clearInterval(interval)
-  }, [isRunning, tempStartTime])
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current)
+      }
+    }
+  }, [isRunning])
 
   const handleButtonClick = useCallback(async () => {
-    if (isProcessing) return
+    if (isProcessing || isOffline) {
+      if (isOffline) {
+        toast.error('Cannot perform action while offline')
+      }
+      return
+    }
 
     setIsProcessing(true)
 
@@ -76,7 +153,9 @@ function App() {
         if (result.success) {
           setIsRunning(true)
           setTempStartTime(result.startTime)
+          setElapsedTime(0)
           setLastActionTime(result.startTimeFormatted)
+          toast.success('Motor started!', { icon: '🟢' })
         }
       } else {
         // Stopping the motor
@@ -85,24 +164,30 @@ function App() {
           setIsRunning(false)
           setTempStartTime(null)
           setLastActionTime(result.log.endTime)
+          toast.success(`Motor stopped. Ran for ${result.log.durationMinutes} minutes`, { icon: '🔴' })
         }
       }
     } catch (error) {
-      alert(error.message || 'Something went wrong')
+      toast.error(error.message || 'Something went wrong')
     } finally {
       setIsProcessing(false)
     }
-  }, [isRunning, isProcessing])
+  }, [isRunning, isProcessing, isOffline])
 
   const handleExport = async () => {
+    if (isOffline) {
+      toast.error('Cannot export while offline')
+      return
+    }
+
     setIsExporting(true)
-    setExportMessage(null)
 
     try {
       const result = await exportToSheets()
-      setExportMessage({ type: 'success', text: result.message })
+      toast.success(result.message, { icon: '📊', duration: 4000 })
+      setShowSettings(false)
     } catch (error) {
-      setExportMessage({ type: 'error', text: error.message || 'Export failed' })
+      toast.error(error.message || 'Export failed')
     } finally {
       setIsExporting(false)
     }
@@ -114,11 +199,11 @@ function App() {
     const secs = seconds % 60
 
     if (hrs > 0) {
-      return `${hrs} hour${hrs > 1 ? 's' : ''} ${mins} min${mins !== 1 ? 's' : ''}`
+      return `${hrs}h ${mins}m ${secs}s`
     } else if (mins > 0) {
-      return `${mins} minute${mins !== 1 ? 's' : ''} ${secs} second${secs !== 1 ? 's' : ''}`
+      return `${mins}m ${secs}s`
     } else {
-      return `${secs} second${secs !== 1 ? 's' : ''}`
+      return `${secs}s`
     }
   }
 
@@ -136,6 +221,7 @@ function App() {
   if (isServerWaking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-6">
+        <Toaster position="top-center" />
         <div className="text-center">
           <div className="w-20 h-20 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
           <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
@@ -156,6 +242,7 @@ function App() {
   if (serverError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-6">
+        <Toaster position="top-center" />
         <div className="text-center">
           <div className="text-6xl mb-6">⚠️</div>
           <h1 className="text-3xl md:text-4xl font-bold text-red-400 mb-4">
@@ -177,6 +264,30 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-6 relative">
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#1e293b',
+            color: '#fff',
+            border: '1px solid #334155'
+          }
+        }}
+      />
+
+      {/* Offline Banner */}
+      {isOffline && (
+        <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 z-50">
+          📡 No internet connection - Actions disabled
+        </div>
+      )}
+
+      {/* Header with Logo */}
+      <div className="absolute top-6 left-6 flex items-center gap-3">
+        <img src="/favicon.svg" alt="Motor Tracker" className="w-8 h-8" />
+        <span className="text-slate-400 font-medium hidden sm:block">Motor Tracker</span>
+      </div>
 
       {/* Settings Button */}
       <button
@@ -216,8 +327,8 @@ function App() {
 
                 <button
                   onClick={handleExport}
-                  disabled={isExporting}
-                  className={`w-full py-3 px-4 rounded-xl text-white font-semibold transition-all ${isExporting
+                  disabled={isExporting || isOffline}
+                  className={`w-full py-3 px-4 rounded-xl text-white font-semibold transition-all ${isExporting || isOffline
                       ? 'bg-slate-600 cursor-not-allowed'
                       : 'bg-green-600 hover:bg-green-500 active:scale-98'
                     }`}
@@ -231,15 +342,11 @@ function App() {
                     'Export Now'
                   )}
                 </button>
+              </div>
 
-                {exportMessage && (
-                  <div className={`mt-3 p-3 rounded-lg text-sm ${exportMessage.type === 'success'
-                      ? 'bg-green-900/50 text-green-300'
-                      : 'bg-red-900/50 text-red-300'
-                    }`}>
-                    {exportMessage.text}
-                  </div>
-                )}
+              {/* Version Info */}
+              <div className="text-center text-slate-500 text-sm pt-4 border-t border-slate-700">
+                Motor Tracker v{APP_VERSION}
               </div>
             </div>
           </div>
@@ -247,7 +354,7 @@ function App() {
       )}
 
       {/* Status Display */}
-      <div className="text-center mb-8">
+      <div className="text-center mb-8 mt-8">
         <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
           Motor Controller
         </h1>
@@ -267,7 +374,7 @@ function App() {
             </div>
             <div className="flex justify-between items-center">
               <span className="text-lg text-slate-400">Running for:</span>
-              <span className="text-xl font-semibold text-yellow-400 tabular-nums">
+              <span className="text-2xl font-bold text-yellow-400 tabular-nums">
                 {formatElapsedTime(elapsedTime)}
               </span>
             </div>
@@ -292,7 +399,7 @@ function App() {
       {/* Main Button */}
       <button
         onClick={handleButtonClick}
-        disabled={isProcessing}
+        disabled={isProcessing || isOffline}
         className={`
           w-56 h-56 md:w-72 md:h-72
           rounded-full
@@ -300,7 +407,7 @@ function App() {
           shadow-2xl
           transform transition-all duration-200 ease-out
           focus:outline-none focus:ring-4 focus:ring-offset-4 focus:ring-offset-slate-900
-          ${isProcessing
+          ${isProcessing || isOffline
             ? 'opacity-70 cursor-not-allowed scale-95'
             : 'active:scale-95'
           }
@@ -317,11 +424,13 @@ function App() {
 
       {/* Button Description */}
       <p className="text-xl md:text-2xl text-slate-300 mt-8 text-center">
-        {isProcessing
-          ? 'Please wait...'
-          : (isRunning
-            ? '👆 Tap the RED button to stop'
-            : '👆 Tap the GREEN button to start')
+        {isOffline
+          ? '📡 Waiting for connection...'
+          : isProcessing
+            ? 'Please wait...'
+            : (isRunning
+              ? '👆 Tap the RED button to stop'
+              : '👆 Tap the GREEN button to start')
         }
       </p>
 
@@ -336,7 +445,7 @@ function App() {
 
       {/* Footer */}
       <footer className="absolute bottom-6 text-slate-500 text-sm">
-        Home Motor Control System
+        Motor Tracker v{APP_VERSION}
       </footer>
     </div>
   )

@@ -1,51 +1,87 @@
 // API Base URL - change this when deploying to production
 const API_BASE = import.meta.env.VITE_API_URL || 'https://motor-tracker-backend.onrender.com/api';
 
-// Helper for fetch with error handling
-async function fetchAPI(endpoint, options = {}) {
-    const response = await fetch(`${API_BASE}${endpoint}`, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options.headers
+// Retry configuration
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1000;
+
+// Helper for fetch with retry logic and exponential backoff
+async function fetchWithRetry(url, options = {}, retries = MAX_RETRIES) {
+    let lastError;
+
+    for (let attempt = 0; attempt < retries; attempt++) {
+        try {
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || `HTTP ${response.status}`);
+            }
+
+            return data;
+        } catch (error) {
+            lastError = error;
+
+            // Don't retry on client errors (4xx) except network failures
+            if (error.message?.includes('HTTP 4')) {
+                throw error;
+            }
+
+            // Wait before retrying (exponential backoff)
+            if (attempt < retries - 1) {
+                const delay = RETRY_DELAY_MS * Math.pow(2, attempt);
+                console.log(`API call failed, retrying in ${delay}ms... (attempt ${attempt + 1}/${retries})`);
+                await new Promise(resolve => setTimeout(resolve, delay));
+            }
         }
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-        throw new Error(data.error || 'API request failed');
     }
 
-    return data;
+    throw lastError;
+}
+
+// Check if online
+export function isOnline() {
+    return navigator.onLine;
 }
 
 // Health check - used to wake up the server
 export async function healthCheck() {
-    return fetchAPI('/health');
+    return fetchWithRetry(`${API_BASE}/health`);
 }
 
 // Get current motor status
 export async function getStatus() {
-    return fetchAPI('/status');
+    return fetchWithRetry(`${API_BASE}/status`);
 }
 
 // Start the motor
 export async function startMotor() {
-    return fetchAPI('/start', { method: 'POST' });
+    return fetchWithRetry(`${API_BASE}/start`, { method: 'POST' });
 }
 
 // Stop the motor
 export async function stopMotor() {
-    return fetchAPI('/stop', { method: 'POST' });
+    return fetchWithRetry(`${API_BASE}/stop`, { method: 'POST' });
 }
 
 // Get all logs
 export async function getLogs() {
-    return fetchAPI('/logs');
+    return fetchWithRetry(`${API_BASE}/logs`);
 }
 
 // Manual export to Google Sheets
 export async function exportToSheets() {
-    return fetchAPI('/export', { method: 'POST' });
+    return fetchWithRetry(`${API_BASE}/export`, { method: 'POST' });
+}
+
+// Heartbeat - get server time and current status
+export async function heartbeat() {
+    return fetchWithRetry(`${API_BASE}/heartbeat`);
 }

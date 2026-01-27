@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <linearGradient id="motorGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#3B82F6"/>
+      <stop offset="100%" style="stop-color:#1D4ED8"/>
+    </linearGradient>
+  </defs>
+  <!-- Motor body -->
+  <rect x="15" y="30" width="45" height="40" rx="5" fill="url(#motorGrad)"/>
+  <!-- Motor fins -->
+  <rect x="20" y="35" width="35" height="4" rx="2" fill="rgba(255,255,255,0.3)"/>
+  <rect x="20" y="43" width="35" height="4" rx="2" fill="rgba(255,255,255,0.3)"/>
+  <rect x="20" y="51" width="35" height="4" rx="2" fill="rgba(255,255,255,0.3)"/>
+  <rect x="20" y="59" width="35" height="4" rx="2" fill="rgba(255,255,255,0.3)"/>
+  <!-- Motor shaft -->
+  <rect x="60" y="42" width="25" height="16" rx="3" fill="url(#motorGrad)"/>
+  <!-- Base -->
+  <rect x="20" y="70" width="35" height="8" rx="2" fill="#1D4ED8"/>
+  <!-- Power indicator -->
+  <circle cx="75" cy="25" r="8" fill="#22C55E"/>
+  <path d="M72 25 L75 21 L75 24 L78 24 L75 29 L75 26 L72 26 Z" fill="white"/>
+</svg>

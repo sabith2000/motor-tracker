@@ -106,6 +106,33 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Server is awake', timestamp: new Date().toISOString() });
 });
 
+// Heartbeat - returns server time and status for sync
+app.get('/api/heartbeat', (req, res) => {
+    const status = readJSON(STATUS_FILE);
+    if (!status) {
+        return res.status(500).json({ error: 'Failed to read status' });
+    }
+
+    const serverTime = new Date().toISOString();
+    let elapsedSeconds = 0;
+
+    if (status.isRunning && status.tempStartTime) {
+        elapsedSeconds = Math.floor((Date.now() - new Date(status.tempStartTime).getTime()) / 1000);
+    }
+
+    // Update last heartbeat
+    status.lastHeartbeat = serverTime;
+    writeJSON(STATUS_FILE, status);
+
+    res.json({
+        serverTime,
+        isRunning: status.isRunning,
+        startTime: status.tempStartTime,
+        elapsedSeconds,
+        startTimeFormatted: status.tempStartTime ? formatTimeIST(status.tempStartTime) : null
+    });
+});
+
 // Debug endpoint - check Google Sheets configuration
 app.get('/api/debug', (req, res) => {
     const hasSheetId = !!process.env.GOOGLE_SHEET_ID;
