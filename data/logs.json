@@ -1,0 +1,14 @@
+{
+  "maxEntries": 100,
+  "logs": [
+    {
+      "id": 1,
+      "date": "27/01/2026",
+      "startTime": "11:08 pm",
+      "endTime": "11:08 pm",
+      "durationMinutes": 0,
+      "rawStartTime": "2026-01-27T17:38:36.286Z",
+      "rawEndTime": "2026-01-27T17:38:58.182Z"
+    }
+  ]
+}
