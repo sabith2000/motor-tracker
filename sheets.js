@@ -20,23 +20,38 @@ function getCredentials() {
     // First, try environment variable (for cloud deployment)
     if (process.env.GOOGLE_CREDENTIALS) {
         try {
-            return JSON.parse(process.env.GOOGLE_CREDENTIALS);
+            const creds = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+            // Fix newlines in private_key if needed (common issue with env vars)
+            if (creds.private_key) {
+                creds.private_key = creds.private_key.replace(/\\n/g, '\n');
+            }
+            console.log('✅ Using GOOGLE_CREDENTIALS from environment');
+            return creds;
         } catch (e) {
-            console.error('Failed to parse GOOGLE_CREDENTIALS env var:', e.message);
+            console.error('❌ Failed to parse GOOGLE_CREDENTIALS env var:', e.message);
+            console.error('Make sure to paste the ENTIRE credentials.json content');
+            return null;
         }
     }
 
     // Fallback to file (for local development)
     if (fs.existsSync(CREDENTIALS_FILE)) {
+        console.log('✅ Using credentials.json file');
         return JSON.parse(fs.readFileSync(CREDENTIALS_FILE, 'utf8'));
     }
 
+    console.log('⚠️ No Google credentials found');
     return null;
 }
 
 // Check if Google Sheets is configured
 function isConfigured() {
-    return getCredentials() !== null && SHEET_ID;
+    const creds = getCredentials();
+    const configured = creds !== null && SHEET_ID;
+    if (!configured) {
+        console.log('⚠️ Google Sheets not configured. SHEET_ID:', SHEET_ID ? 'set' : 'missing', 'Credentials:', creds ? 'set' : 'missing');
+    }
+    return configured;
 }
 
 // Get authenticated Sheets client
@@ -80,12 +95,12 @@ function formatTimeIST(date) {
 export async function exportToSheets(logs) {
     if (!isConfigured()) {
         console.log('⚠️ Google Sheets not configured, skipping export');
-        return false;
+        throw new Error('Google Sheets not configured. Check GOOGLE_CREDENTIALS and GOOGLE_SHEET_ID environment variables.');
     }
 
     if (!logs || logs.length === 0) {
         console.log('No logs to export');
-        return false;
+        throw new Error('No logs to export');
     }
 
     try {
