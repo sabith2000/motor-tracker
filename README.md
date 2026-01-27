@@ -3,8 +3,13 @@
 A modern, production-ready full-stack application to track and monitor home water pump motor usage.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-v0.1.4-green.svg)
+![Version](https://img.shields.io/badge/version-v0.1.9-green.svg)
 ![Status](https://img.shields.io/badge/status-production-success.svg)
+
+## 🆕 Changelog (v0.1.9)
+- **Restored**: Detailed API endpoint logging in server console.
+- **Fixed**: Google Sheets `credentials.json` path regression (v0.1.8 hotfix).
+- **Refactored**: Full codebase split into MVC Backend & Component-based Frontend (v0.1.8).
 
 ## ✨ Features
 

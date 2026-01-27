@@ -9,7 +9,7 @@ import ConfirmationModal from './components/modals/ConfirmationModal'
 import { useMotorSync } from './hooks/useMotorSync'
 
 // App version
-const APP_VERSION = '0.1.8'
+const APP_VERSION = '0.1.9'
 
 function App() {
   const {

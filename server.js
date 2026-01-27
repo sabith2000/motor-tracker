@@ -21,7 +21,13 @@ app.use('/api', apiRoutes);
 // Start Server
 app.listen(PORT, () => {
     console.log(`🚀 Motor Tracker Server running on port ${PORT}`);
-    console.log(`📊 API endpoints available at /api`);
+    console.log(`📊 API endpoints:`);
+    console.log(`   GET  /api/health - Health check`);
+    console.log(`   GET  /api/status - Get motor status`);
+    console.log(`   POST /api/start  - Start motor`);
+    console.log(`   POST /api/stop   - Stop motor`);
+    console.log(`   GET  /api/logs   - Get logs`);
+    console.log(`   POST /api/export - Export to Sheets`);
 
     // Schedule daily export at midnight IST
     scheduleExport();

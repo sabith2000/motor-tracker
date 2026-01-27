@@ -7,10 +7,12 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+const PROJECT_ROOT = path.join(__dirname, '..', '..', '..');
+
 // Paths
-const CREDENTIALS_FILE = path.join(__dirname, 'credentials.json');
-const LOGS_FILE = path.join(__dirname, 'data', 'logs.json');
-const ARCHIVE_FILE = path.join(__dirname, 'data', 'archive.json');
+const CREDENTIALS_FILE = path.join(PROJECT_ROOT, 'credentials.json');
+const LOGS_FILE = path.join(PROJECT_ROOT, 'data', 'logs.json');
+const ARCHIVE_FILE = path.join(PROJECT_ROOT, 'data', 'archive.json');
 
 // Get Sheet ID from environment
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
