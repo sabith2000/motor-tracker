@@ -1,5 +1,5 @@
 // API Base URL - change this when deploying to production
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const API_BASE = import.meta.env.VITE_API_URL || 'https://motor-tracker-backend.onrender.com/api';
 
 // Helper for fetch with error handling
 async function fetchAPI(endpoint, options = {}) {
