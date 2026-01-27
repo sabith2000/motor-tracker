@@ -3,7 +3,7 @@ import toast, { Toaster } from 'react-hot-toast'
 import { healthCheck, getStatus, startMotor, stopMotor, exportToSheets, heartbeat, isOnline } from './api'
 
 // App version
-const APP_VERSION = '0.1.5'
+const APP_VERSION = '0.1.6'
 
 function App() {
   // Server state
@@ -93,8 +93,24 @@ function App() {
   const syncWithServer = useCallback(async () => {
     try {
       const data = await heartbeat()
-      setIsRunning(data.isRunning)
-      setTempStartTime(data.startTime)
+
+      // Check for remote stop
+      if (isRunning && !data.isRunning) {
+        console.log('📉 Remote stop detected')
+        setIsRunning(false)
+        setTempStartTime(null)
+        // Use server's last stopped time if available, otherwise just clear it
+        if (data.lastStoppedTime) {
+          setLastActionTime(data.lastStoppedTime)
+          toast('Motor was stopped remotely', { icon: '📴' })
+        }
+        // Clear timer immediately
+        if (timerRef.current) clearInterval(timerRef.current)
+      } else {
+        setIsRunning(data.isRunning)
+        setTempStartTime(data.startTime)
+      }
+
       // Only force update elapsed time if significantly different to avoid jitter
       if (Math.abs(data.elapsedSeconds - elapsedTime) > 2) {
         setElapsedTime(data.elapsedSeconds)
@@ -102,7 +118,7 @@ function App() {
     } catch (error) {
       console.error('Heartbeat failed:', error)
     }
-  }, [elapsedTime])
+  }, [elapsedTime, isRunning])
 
   // Wake up server and get initial status
   useEffect(() => {
@@ -218,7 +234,17 @@ function App() {
         }
       }
     } catch (error) {
-      toast.error(error.message || 'Something went wrong')
+      if (error.message?.includes('already running')) {
+        toast('Motor is already on', { icon: '⚠️' })
+        setIsRunning(true) // Re-sync state
+        syncWithServer()
+      } else if (error.message?.includes('not running')) {
+        toast('Motor is already off', { icon: '⚠️' })
+        setIsRunning(false)
+        syncWithServer()
+      } else {
+        toast.error(error.message || 'Something went wrong')
+      }
     } finally {
       setIsProcessing(false)
     }
@@ -399,8 +425,8 @@ function App() {
                   onClick={handleExport}
                   disabled={isExporting || isOffline}
                   className={`w-full py-3 px-4 rounded-xl text-white font-semibold transition-all ${isExporting || isOffline
-                      ? 'bg-slate-600 cursor-not-allowed'
-                      : 'bg-green-600 hover:bg-green-500 active:scale-98'
+                    ? 'bg-slate-600 cursor-not-allowed'
+                    : 'bg-green-600 hover:bg-green-500 active:scale-98'
                     }`}
                 >
                   {isExporting ? (

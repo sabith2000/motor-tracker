@@ -129,7 +129,9 @@ app.get('/api/heartbeat', (req, res) => {
         isRunning: status.isRunning,
         startTime: status.tempStartTime,
         elapsedSeconds,
-        startTimeFormatted: status.tempStartTime ? formatTimeIST(status.tempStartTime) : null
+        elapsedSeconds,
+        startTimeFormatted: status.tempStartTime ? formatTimeIST(status.tempStartTime) : null,
+        lastStoppedTime: status.lastStoppedTime || null
     });
 });
 
@@ -249,6 +251,7 @@ app.post('/api/stop', async (req, res) => {
     // Update status
     status.isRunning = false;
     status.tempStartTime = null;
+    status.lastStoppedTime = formatTimeIST(endTime);
 
     if (!writeJSON(STATUS_FILE, status)) {
         return res.status(500).json({ error: 'Failed to save status' });
