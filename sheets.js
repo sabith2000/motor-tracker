@@ -15,18 +15,37 @@ const ARCHIVE_FILE = path.join(__dirname, 'data', 'archive.json');
 // Get Sheet ID from environment
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
+// Get credentials (supports both file and environment variable)
+function getCredentials() {
+    // First, try environment variable (for cloud deployment)
+    if (process.env.GOOGLE_CREDENTIALS) {
+        try {
+            return JSON.parse(process.env.GOOGLE_CREDENTIALS);
+        } catch (e) {
+            console.error('Failed to parse GOOGLE_CREDENTIALS env var:', e.message);
+        }
+    }
+
+    // Fallback to file (for local development)
+    if (fs.existsSync(CREDENTIALS_FILE)) {
+        return JSON.parse(fs.readFileSync(CREDENTIALS_FILE, 'utf8'));
+    }
+
+    return null;
+}
+
 // Check if Google Sheets is configured
 function isConfigured() {
-    return fs.existsSync(CREDENTIALS_FILE) && SHEET_ID;
+    return getCredentials() !== null && SHEET_ID;
 }
 
 // Get authenticated Sheets client
 async function getSheetsClient() {
-    if (!isConfigured()) {
-        throw new Error('Google Sheets not configured. Add credentials.json and set GOOGLE_SHEET_ID in .env');
-    }
+    const credentials = getCredentials();
 
-    const credentials = JSON.parse(fs.readFileSync(CREDENTIALS_FILE, 'utf8'));
+    if (!credentials || !SHEET_ID) {
+        throw new Error('Google Sheets not configured. Set GOOGLE_CREDENTIALS and GOOGLE_SHEET_ID');
+    }
 
     const auth = new google.auth.GoogleAuth({
         credentials,
@@ -100,17 +119,12 @@ export async function exportToSheets(logs) {
     }
 }
 
-// Schedule daily export at midnight IST (00:00 IST = 18:30 UTC previous day)
+// Schedule daily export at midnight IST
 export function scheduleExport() {
     if (!isConfigured()) {
         console.log('⚠️ Google Sheets not configured, daily export disabled');
         return;
     }
-
-    // Cron expression for midnight IST
-    // IST is UTC+5:30, so midnight IST = 18:30 UTC previous day
-    // Using '30 18 * * *' for UTC, but node-cron uses system timezone
-    // So we'll use '0 0 * * *' and set TZ environment
 
     cron.schedule('0 0 * * *', async () => {
         console.log('🕛 Running scheduled daily export...');
