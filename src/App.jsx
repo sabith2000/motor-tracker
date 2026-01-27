@@ -9,7 +9,7 @@ import ConfirmationModal from './components/modals/ConfirmationModal'
 import { useMotorSync } from './hooks/useMotorSync'
 
 // App version
-const APP_VERSION = '0.1.9'
+const APP_VERSION = '0.1.10'
 
 function App() {
   const {
@@ -171,15 +171,10 @@ function App() {
         setElapsedTime={setElapsedTime}
         elapsedTimeRef={elapsedTimeRef}
         setLastActionTime={setLastActionTime}
+        lastActionTime={lastActionTime}
       />
 
-      {!isRunning && lastActionTime && (
-        <div className="w-full max-w-sm mb-8 bg-slate-800/50 rounded-2xl p-4 border border-slate-700">
-          <p className="text-center text-slate-400 text-lg">
-            ✓ Motor was stopped at <span className="text-white font-medium">{lastActionTime}</span>
-          </p>
-        </div>
-      )}
+
 
       {!lastActionTime && !isRunning && (
         <div className="mt-8 px-6 py-3 bg-blue-900/30 rounded-xl border border-blue-500/30">

@@ -14,7 +14,9 @@ export default function ControlPanel({
     setTempStartTime,
     setElapsedTime,
     elapsedTimeRef,
-    setLastActionTime
+    elapsedTimeRef,
+    setLastActionTime,
+    lastActionTime
 }) {
 
     const handleButtonClick = async () => {
@@ -69,6 +71,7 @@ export default function ControlPanel({
     return (
         <>
             {/* Live Info Panel */}
+            {/* Live Info Panel (Running) */}
             {isRunning && (
                 <div className="w-full max-w-sm mb-8 bg-slate-800/80 rounded-2xl p-5 border border-green-500/30 shadow-lg shadow-green-500/10">
                     <div className="space-y-3">
@@ -88,6 +91,15 @@ export default function ControlPanel({
                             </p>
                         </div>
                     </div>
+                </div>
+            )}
+
+            {/* Stopped Info Panel (Not Running) */}
+            {!isRunning && lastActionTime && (
+                <div className="w-full max-w-sm mb-8 bg-slate-800/50 rounded-2xl p-4 border border-slate-700">
+                    <p className="text-center text-slate-400 text-lg">
+                        ✓ Motor was stopped at <span className="text-white font-medium">{lastActionTime}</span>
+                    </p>
                 </div>
             )}
 
