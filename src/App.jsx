@@ -3,7 +3,7 @@ import toast, { Toaster } from 'react-hot-toast'
 import { healthCheck, getStatus, startMotor, stopMotor, exportToSheets, heartbeat, isOnline } from './api'
 
 // App version
-const APP_VERSION = '0.1.1'
+const APP_VERSION = '0.1.2'
 
 // Heartbeat interval (30 seconds)
 const HEARTBEAT_INTERVAL = 30000
@@ -180,6 +180,15 @@ function App() {
       return
     }
 
+    // Confirmation check
+    const confirmed = window.confirm(
+      'Export all logs to Google Sheets?\n\nThis will:\n• Send logs to your Google Sheet\n• Clear local logs after export\n\nProceed?'
+    )
+
+    if (!confirmed) {
+      return
+    }
+
     setIsExporting(true)
 
     try {
@@ -187,7 +196,14 @@ function App() {
       toast.success(result.message, { icon: '📊', duration: 4000 })
       setShowSettings(false)
     } catch (error) {
-      toast.error(error.message || 'Export failed')
+      // Specific error handling
+      if (error.message?.includes('No logs')) {
+        toast.error('No logs to export', { icon: '📭' })
+      } else if (error.message?.includes('not configured')) {
+        toast.error('Google Sheets not configured', { icon: '⚙️' })
+      } else {
+        toast.error(error.message || 'Export failed. Please try again.')
+      }
     } finally {
       setIsExporting(false)
     }
@@ -289,7 +305,7 @@ function App() {
       {/* Header with Logo */}
       <div className="absolute top-6 left-6 flex items-center gap-2">
         <img src="/favicon.png" alt="Motor Tracker" className="w-8 h-8" />
-        <span className="text-slate-400 font-medium text-sm sm:text-base">Motor Tracker</span>
+        <span className="brand-title text-base sm:text-lg">Motor Tracker</span>
       </div>
 
       {/* Settings Button */}
