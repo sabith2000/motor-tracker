@@ -106,6 +106,38 @@ app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', message: 'Server is awake', timestamp: new Date().toISOString() });
 });
 
+// Debug endpoint - check Google Sheets configuration
+app.get('/api/debug', (req, res) => {
+    const hasSheetId = !!process.env.GOOGLE_SHEET_ID;
+    const hasCredentials = !!process.env.GOOGLE_CREDENTIALS;
+
+    let credentialsValid = false;
+    let credentialsError = null;
+    let clientEmail = null;
+
+    if (hasCredentials) {
+        try {
+            const creds = JSON.parse(process.env.GOOGLE_CREDENTIALS);
+            credentialsValid = !!(creds.client_email && creds.private_key);
+            clientEmail = creds.client_email ? creds.client_email.substring(0, 20) + '...' : null;
+        } catch (e) {
+            credentialsError = e.message;
+        }
+    }
+
+    res.json({
+        googleSheets: {
+            sheetIdSet: hasSheetId,
+            sheetIdValue: hasSheetId ? process.env.GOOGLE_SHEET_ID.substring(0, 10) + '...' : null,
+            credentialsSet: hasCredentials,
+            credentialsValid: credentialsValid,
+            credentialsError: credentialsError,
+            clientEmail: clientEmail
+        },
+        environment: process.env.NODE_ENV || 'development'
+    });
+});
+
 // GET /api/status - Get current motor status
 app.get('/api/status', (req, res) => {
     const status = readJSON(STATUS_FILE);
@@ -260,7 +292,7 @@ app.post('/api/export', async (req, res) => {
         console.error('Export failed:', error);
         res.status(500).json({
             success: false,
-            error: 'Failed to export to Google Sheets. Check credentials and sheet ID.'
+            error: error.message || 'Failed to export to Google Sheets. Check credentials and sheet ID.'
         });
     }
 });
