@@ -3,113 +3,145 @@
 A modern, production-ready full-stack application to track and monitor home water pump motor usage.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-v0.1.10-green.svg)
+![Version](https://img.shields.io/badge/version-v0.2.0-green.svg)
 ![Status](https://img.shields.io/badge/status-production-success.svg)
 
-## 🆕 Changelog (v0.1.10)
-- **UI Fix**: Adjusted position of "Motor was stopped" message to be above the controls for better visibility.
-- **Enhanced**: Improved `ControlPanel` component to better manage state displays.
+## 🆕 What's New in v0.2.0
 
-## 🆕 Changelog (v0.1.9)
-- **Restored**: Detailed API endpoint logging in server console.
-- **Fixed**: Google Sheets `credentials.json` path regression (v0.1.8 hotfix).
-- **Refactored**: Full codebase split into MVC Backend & Component-based Frontend (v0.1.8).
+### 🗄️ MongoDB Persistent Storage
+- **Migrated** from JSON files to MongoDB Atlas for reliable data persistence
+- **Works on cloud platforms** like Render without data loss on restart
+- **New files**: `db.js` (connection manager), `mongoStore.js` (CRUD operations)
+- **Retry logic** with auto-reconnect for network resilience
+
+### 🐛 Bug Fixes (v0.1.11)
+- Fixed React Rules of Hooks violation in ConfirmationModal
+- Removed duplicate utility functions
+- Fixed timer cleanup on remote stop detection
+
+---
 
 ## ✨ Features
 
 - **Real-time Monitoring**: Live status (ON/OFF) and duration timer
-- **Multi-Device Sync**: Control from phone, view on PC instantly (WebSocket-like 30s heartbeat)
-- **Data Persistence**: Json-based storage system with auto-archiving
+- **Multi-Device Sync**: Control from phone, view on PC instantly (3s heartbeat when running)
+- **MongoDB Persistence**: Cloud-ready storage that survives server restarts
 - **Google Sheets Integration**: 
   - 🕛 Automatic daily export at midnight (IST)
   - 📊 Manual export button
-  - 📝 formatted logs with duration calculations
+  - 📝 Formatted logs with duration calculations
 - **Smart Error Handling**:
   - 🔄 Auto-retry on network failure
-  - 📡 Offline detection & queueing
+  - 📡 Offline detection
   - 🛡️ Session recovery after browser close/refresh
 - **Modern UI**:
-  - 🎨 Glassmorphism & dark mode aesthetics
-  - ⚡ React + Vite for lightning speed
+  - 🎨 Dark mode with glassmorphism effects
+  - ⚡ React 19 + Vite for lightning speed
   - 📱 Fully responsive mobile-first design
+
+---
 
 ## 🛠️ Tech Stack
 
-**Frontend**
-- React 19 + Vite
-- TailwindCSS v4
-- React Hot Toast
-- Google Fonts (Inter + Russo One)
-- Lucide React Icons
+| Frontend | Backend | Database | Deployment |
+|----------|---------|----------|------------|
+| React 19 | Node.js + Express | MongoDB Atlas | Render |
+| Vite | Google Sheets API | Mongoose ODM | |
+| TailwindCSS v4 | Node-Cron | | |
 
-**Backend**
-- Node.js + Express
-- Google Sheets API v4
-- Node-Cron (Scheduling)
-- File-based JSON Database
-
-**Deployment**
-- Render (Web Service)
+---
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 - Node.js 20+
-- Google Cloud Service Account (credentials.json)
+- MongoDB Atlas account (free tier works)
+- Google Cloud Service Account (for Sheets export)
 
 ### Installation
 
-1. **Clone & Install**
-   ```bash
-   git clone https://github.com/yourusername/motor-tracker.git
-   cd motor-tracker
-   npm install
-   ```
+```bash
+# Clone & Install
+git clone https://github.com/yourusername/motor-tracker.git
+cd motor-tracker
+npm install
+```
 
-2. **Setup Credentials**
-   - Place your Google Service Account key as `credentials.json` in the root folder.
-   - Create a `.env` file:
-     ```env
-     PORT=3001
-     GOOGLE_SHEET_ID=your_sheet_id_here
-     ```
+### Configuration
 
-3. **Run Locally**
-   ```bash
-   npm run dev:all
-   ```
-   This runs both Frontend (http://localhost:5173) and Backend (http://localhost:3001).
+Create a `.env` file:
 
-## 🌍 Deployment
+```env
+# MongoDB (required)
+MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/motor-tracker
 
-### Deploy to Render
+# Google Sheets (optional, for export feature)
+GOOGLE_SHEET_ID=your_sheet_id_here
 
-1. **Create Web Service**
-   - Connect GitHub repo
-   - Build Command: `npm install`
-   - Start Command: `node server.js`
+# Server port
+PORT=3001
+```
 
-2. **Environment Variables**
-   - `GOOGLE_SHEET_ID`: Just the ID string (not URL)
-   - `GOOGLE_CREDENTIALS`: Paste the **entire content** of `credentials.json`
+### Run Locally
+
+```bash
+npm run dev:all    # Frontend + Backend
+npm run dev        # Frontend only
+npm run server     # Backend only
+```
+
+- Frontend: http://localhost:5173
+- Backend: http://localhost:3001
+
+---
+
+## 🌍 Deployment (Render)
+
+1. **Create Web Service** → Connect GitHub repo
+2. **Build Command**: `npm install`
+3. **Start Command**: `node server.js`
+
+### Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `MONGODB_URI` | ✅ | MongoDB Atlas connection string |
+| `GOOGLE_SHEET_ID` | ❌ | Sheet ID for export (from URL) |
+| `GOOGLE_CREDENTIALS` | ❌ | Entire `credentials.json` content |
+
+---
 
 ## 📁 Project Structure
 
 ```
-├── data/               # Persistent JSON storage
-│   ├── status.json     # Current motor state
-│   ├── logs.json       # Active logs
-│   └── archive.json    # Archive stats
-├── public/             # Static assets (favicons)
 ├── src/
-│   ├── components/     # React components
-│   ├── api.js          # API client with retry logic
-│   ├── App.jsx         # Main application logic
-│   └── index.css       # Global styles & fonts
-├── server.js           # Express API server
-└── sheets.js           # Google Sheets integration
+│   ├── components/          # React components
+│   │   ├── layout/          # Header, Footer
+│   │   ├── modals/          # Settings, Confirmation
+│   │   └── motor/           # ControlPanel, MotorStatus
+│   ├── hooks/               # Custom React hooks
+│   ├── server/
+│   │   ├── controllers/     # API logic (motorController.js)
+│   │   ├── routes/          # Express routes
+│   │   └── utils/           # db.js, mongoStore.js, sheets.js
+│   ├── api.js               # Frontend API client
+│   └── App.jsx              # Main app
+├── server.js                # Express entry point
+└── data/                    # Legacy JSON files (deprecated)
 ```
+
+---
+
+## 🗺️ Roadmap
+
+| Version | Feature | Status |
+|---------|---------|--------|
+| v0.2.0 | MongoDB Integration | ✅ Done |
+| v0.3.0 | PWA & Offline Support | 🔜 Planned |
+| v0.4.0 | History View | 🔜 Planned |
+
+---
 
 ## 📝 License
 
-This project is open source and available under the [MIT License](LICENSE).
+MIT License - see [LICENSE](LICENSE)
