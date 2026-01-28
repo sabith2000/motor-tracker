@@ -1,175 +1,245 @@
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { readJSON, writeJSON } from '../utils/fileStore.js';
 import { formatDateIST, formatTimeIST, calculateDurationMinutes } from '../utils/time.js';
 import { exportToSheets } from '../utils/sheets.js';
+import {
+    getStatus,
+    updateStatus,
+    addLog,
+    getLogs,
+    getLogCount,
+    getArchive,
+    updateArchive,
+    markLogsAsExported,
+    deleteExportedLogs
+} from '../utils/mongoStore.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const PROJECT_ROOT = path.join(__dirname, '..', '..', '..'); // Up 3 levels from src/server/controllers
-const DATA_DIR = path.join(PROJECT_ROOT, 'data');
-
-const STATUS_FILE = path.join(DATA_DIR, 'status.json');
-const LOGS_FILE = path.join(DATA_DIR, 'logs.json');
-const ARCHIVE_FILE = path.join(DATA_DIR, 'archive.json');
+// Max logs before auto-export
+const MAX_LOG_ENTRIES = 100;
 
 // Check and archive logs if limit reached
 async function checkAndArchiveLogs() {
-    const logsData = readJSON(LOGS_FILE);
-    if (!logsData) return;
+    try {
+        const logCount = await getLogCount();
 
-    if (logsData.logs.length >= logsData.maxEntries) {
-        console.log('Log limit reached, archiving to Google Sheets...');
-        try {
-            await exportToSheets(logsData.logs);
+        if (logCount >= MAX_LOG_ENTRIES) {
+            console.log('📦 Log limit reached, archiving to Google Sheets...');
 
-            const archiveData = readJSON(ARCHIVE_FILE) || { lastExportDate: null, totalArchivedEntries: 0 };
-            archiveData.lastExportDate = formatDateIST(new Date());
-            archiveData.totalArchivedEntries += logsData.logs.length;
-            writeJSON(ARCHIVE_FILE, archiveData);
+            const logs = await getLogs(true); // Get unexported logs
+            if (logs.length === 0) return;
 
-            logsData.logs = [];
-            writeJSON(LOGS_FILE, logsData);
-            console.log('Logs archived successfully');
-        } catch (error) {
-            console.error('Failed to archive logs:', error);
+            await exportToSheets(logs.map(log => ({
+                date: log.date,
+                startTime: log.startTime,
+                endTime: log.endTime,
+                durationMinutes: log.durationMinutes
+            })));
+
+            // Mark as exported
+            await markLogsAsExported(logs.map(log => log._id));
+
+            // Update archive metadata
+            const archive = await getArchive();
+            await updateArchive({
+                lastExportDate: formatDateIST(new Date()),
+                totalArchivedEntries: archive.totalArchivedEntries + logs.length
+            });
+
+            // Delete exported logs to keep DB clean
+            const deletedCount = await deleteExportedLogs();
+            console.log(`✅ Archived ${deletedCount} logs successfully`);
         }
+    } catch (error) {
+        console.error('❌ Failed to archive logs:', error.message);
     }
 }
 
 export const getHealth = (req, res) => {
-    res.json({ status: 'ok', message: 'Server is awake', timestamp: new Date().toISOString() });
-};
-
-export const getHeartbeat = (req, res) => {
-    const status = readJSON(STATUS_FILE);
-    if (!status) return res.status(500).json({ error: 'Failed to read status' });
-
-    const serverTime = new Date().toISOString();
-    let elapsedSeconds = 0;
-
-    if (status.isRunning && status.tempStartTime) {
-        elapsedSeconds = Math.floor((Date.now() - new Date(status.tempStartTime).getTime()) / 1000);
-    }
-
-    status.lastHeartbeat = serverTime;
-    writeJSON(STATUS_FILE, status);
-
     res.json({
-        serverTime,
-        isRunning: status.isRunning,
-        startTime: status.tempStartTime,
-        elapsedSeconds,
-        startTimeFormatted: status.tempStartTime ? formatTimeIST(status.tempStartTime) : null,
-        lastStoppedTime: status.lastStoppedTime || null
+        status: 'ok',
+        message: 'Server is awake',
+        timestamp: new Date().toISOString(),
+        storage: 'mongodb'
     });
 };
 
-export const getStatus = (req, res) => {
-    const status = readJSON(STATUS_FILE);
-    if (!status) return res.status(500).json({ error: 'Failed to read status' });
-    res.json(status);
-};
-
-export const startMotor = (req, res) => {
-    const status = readJSON(STATUS_FILE);
-    if (!status) return res.status(500).json({ error: 'Failed to read status' });
-
-    if (status.isRunning) {
-        return res.status(400).json({ success: false, error: 'Motor is already running' });
-    }
-
-    const startTime = new Date().toISOString();
-    status.isRunning = true;
-    status.tempStartTime = startTime;
-
-    if (!writeJSON(STATUS_FILE, status)) return res.status(500).json({ error: 'Failed to save status' });
-
-    res.json({
-        success: true,
-        message: 'Motor started',
-        startTime,
-        startTimeFormatted: formatTimeIST(startTime)
-    });
-};
-
-export const stopMotor = async (req, res) => {
-    const status = readJSON(STATUS_FILE);
-    if (!status) return res.status(500).json({ error: 'Failed to read status' });
-
-    if (!status.isRunning) {
-        return res.status(400).json({ success: false, error: 'Motor is not running' });
-    }
-
-    const endTime = new Date().toISOString();
-    const startTime = status.tempStartTime;
-
-    const logsData = readJSON(LOGS_FILE);
-    if (!logsData) return res.status(500).json({ error: 'Failed to read logs' });
-
-    const logEntry = {
-        id: logsData.logs.length + 1,
-        date: formatDateIST(startTime),
-        startTime: formatTimeIST(startTime),
-        endTime: formatTimeIST(endTime),
-        durationMinutes: calculateDurationMinutes(startTime, endTime),
-        rawStartTime: startTime,
-        rawEndTime: endTime
-    };
-
-    logsData.logs.push(logEntry);
-    if (!writeJSON(LOGS_FILE, logsData)) return res.status(500).json({ error: 'Failed to save log' });
-
-    status.isRunning = false;
-    status.tempStartTime = null;
-    status.lastStoppedTime = formatTimeIST(endTime);
-
-    if (!writeJSON(STATUS_FILE, status)) return res.status(500).json({ error: 'Failed to save status' });
-
-    await checkAndArchiveLogs();
-
-    res.json({ success: true, message: 'Motor stopped', log: logEntry });
-};
-
-export const getLogs = (req, res) => {
-    const logsData = readJSON(LOGS_FILE);
-    if (!logsData) return res.status(500).json({ error: 'Failed to read logs' });
-    const archiveData = readJSON(ARCHIVE_FILE);
-    res.json({
-        logs: logsData.logs,
-        count: logsData.logs.length,
-        maxEntries: logsData.maxEntries,
-        archive: archiveData
-    });
-};
-
-export const exportLogs = async (req, res) => {
-    const logsData = readJSON(LOGS_FILE);
-    if (!logsData) return res.status(500).json({ error: 'Failed to read logs' });
-
-    if (logsData.logs.length === 0) {
-        return res.status(400).json({ success: false, error: 'No logs to export' });
-    }
-
+export const getHeartbeat = async (req, res) => {
     try {
-        await exportToSheets(logsData.logs);
+        const status = await getStatus();
+        const serverTime = new Date().toISOString();
+        let elapsedSeconds = 0;
 
-        const archiveData = readJSON(ARCHIVE_FILE) || { lastExportDate: null, totalArchivedEntries: 0 };
-        archiveData.lastExportDate = formatDateIST(new Date());
-        archiveData.totalArchivedEntries += logsData.logs.length;
-        writeJSON(ARCHIVE_FILE, archiveData);
+        if (status.isRunning && status.tempStartTime) {
+            elapsedSeconds = Math.floor((Date.now() - new Date(status.tempStartTime).getTime()) / 1000);
+        }
 
-        const exportedCount = logsData.logs.length;
-        logsData.logs = [];
-        writeJSON(LOGS_FILE, logsData);
+        // Update heartbeat
+        await updateStatus({ lastHeartbeat: new Date() });
+
+        res.json({
+            serverTime,
+            isRunning: status.isRunning,
+            startTime: status.tempStartTime,
+            elapsedSeconds,
+            startTimeFormatted: status.tempStartTime ? formatTimeIST(status.tempStartTime) : null,
+            lastStoppedTime: status.lastStoppedTime || null
+        });
+    } catch (error) {
+        console.error('Heartbeat error:', error.message);
+        res.status(500).json({ error: 'Failed to get heartbeat' });
+    }
+};
+
+export const getStatusEndpoint = async (req, res) => {
+    try {
+        const status = await getStatus();
+        res.json({
+            isRunning: status.isRunning,
+            tempStartTime: status.tempStartTime,
+            lastStoppedTime: status.lastStoppedTime,
+            lastHeartbeat: status.lastHeartbeat
+        });
+    } catch (error) {
+        console.error('Status error:', error.message);
+        res.status(500).json({ error: 'Failed to read status' });
+    }
+};
+
+export const startMotor = async (req, res) => {
+    try {
+        const status = await getStatus();
+
+        if (status.isRunning) {
+            return res.status(400).json({ success: false, error: 'Motor is already running' });
+        }
+
+        const startTime = new Date();
+        await updateStatus({
+            isRunning: true,
+            tempStartTime: startTime
+        });
 
         res.json({
             success: true,
-            message: `Exported ${exportedCount} logs to Google Sheets`,
-            exportedAt: `${formatDateIST(new Date())} ${formatTimeIST(new Date())}`
+            message: 'Motor started',
+            startTime: startTime.toISOString(),
+            startTimeFormatted: formatTimeIST(startTime)
         });
     } catch (error) {
-        console.error('Export failed:', error);
+        console.error('Start motor error:', error.message);
+        res.status(500).json({ error: 'Failed to start motor' });
+    }
+};
+
+export const stopMotor = async (req, res) => {
+    try {
+        const status = await getStatus();
+
+        if (!status.isRunning) {
+            return res.status(400).json({ success: false, error: 'Motor is not running' });
+        }
+
+        const endTime = new Date();
+        const startTime = status.tempStartTime;
+
+        // Create log entry
+        const logEntry = await addLog({
+            date: formatDateIST(startTime),
+            startTime: formatTimeIST(startTime),
+            endTime: formatTimeIST(endTime),
+            durationMinutes: calculateDurationMinutes(startTime, endTime),
+            rawStartTime: startTime,
+            rawEndTime: endTime
+        });
+
+        // Update status
+        await updateStatus({
+            isRunning: false,
+            tempStartTime: null,
+            lastStoppedTime: formatTimeIST(endTime)
+        });
+
+        // Check if we need to archive
+        await checkAndArchiveLogs();
+
+        res.json({
+            success: true,
+            message: 'Motor stopped',
+            log: {
+                date: logEntry.date,
+                startTime: logEntry.startTime,
+                endTime: logEntry.endTime,
+                durationMinutes: logEntry.durationMinutes
+            }
+        });
+    } catch (error) {
+        console.error('Stop motor error:', error.message);
+        res.status(500).json({ error: 'Failed to stop motor' });
+    }
+};
+
+export const getLogsEndpoint = async (req, res) => {
+    try {
+        const logs = await getLogs();
+        const archive = await getArchive();
+        const logCount = await getLogCount();
+
+        res.json({
+            logs: logs.map(log => ({
+                id: log._id,
+                date: log.date,
+                startTime: log.startTime,
+                endTime: log.endTime,
+                durationMinutes: log.durationMinutes,
+                exportedToSheets: log.exportedToSheets
+            })),
+            count: logCount,
+            maxEntries: MAX_LOG_ENTRIES,
+            archive: {
+                lastExportDate: archive.lastExportDate,
+                totalArchivedEntries: archive.totalArchivedEntries
+            }
+        });
+    } catch (error) {
+        console.error('Get logs error:', error.message);
+        res.status(500).json({ error: 'Failed to read logs' });
+    }
+};
+
+export const exportLogsEndpoint = async (req, res) => {
+    try {
+        const logs = await getLogs(true); // Get unexported only
+
+        if (logs.length === 0) {
+            return res.status(400).json({ success: false, error: 'No logs to export' });
+        }
+
+        await exportToSheets(logs.map(log => ({
+            date: log.date,
+            startTime: log.startTime,
+            endTime: log.endTime,
+            durationMinutes: log.durationMinutes
+        })));
+
+        // Mark as exported
+        await markLogsAsExported(logs.map(log => log._id));
+
+        // Update archive
+        const archive = await getArchive();
+        await updateArchive({
+            lastExportDate: formatDateIST(new Date()),
+            totalArchivedEntries: archive.totalArchivedEntries + logs.length
+        });
+
+        // Delete exported logs
+        const deletedCount = await deleteExportedLogs();
+
+        res.json({
+            success: true,
+            message: `Exported ${logs.length} logs to Google Sheets`,
+            exportedAt: `${formatDateIST(new Date())} ${formatTimeIST(new Date())}`,
+            deletedFromDB: deletedCount
+        });
+    } catch (error) {
+        console.error('Export failed:', error.message);
         res.status(500).json({ success: false, error: error.message || 'Export failed' });
     }
 };
@@ -177,6 +247,7 @@ export const exportLogs = async (req, res) => {
 export const getDebug = (req, res) => {
     const hasSheetId = !!process.env.GOOGLE_SHEET_ID;
     const hasCredentials = !!process.env.GOOGLE_CREDENTIALS;
+    const hasMongoUri = !!process.env.MONGODB_URI;
     let credentialsValid = false;
     let credentialsError = null;
     let clientEmail = null;
@@ -192,6 +263,11 @@ export const getDebug = (req, res) => {
     }
 
     res.json({
+        storage: 'mongodb',
+        mongodb: {
+            uriSet: hasMongoUri,
+            uriPreview: hasMongoUri ? process.env.MONGODB_URI.substring(0, 30) + '...' : null
+        },
         googleSheets: {
             sheetIdSet: hasSheetId,
             sheetIdValue: hasSheetId ? process.env.GOOGLE_SHEET_ID.substring(0, 10) + '...' : null,

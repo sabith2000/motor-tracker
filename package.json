@@ -1,7 +1,7 @@
 {
   "name": "motor-tracker",
   "private": true,
-  "version": "0.1.11",
+  "version": "0.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -15,6 +15,7 @@
     "cors": "^2.8.5",
     "express": "^4.21.0",
     "googleapis": "^144.0.0",
+    "mongoose": "^9.1.5",
     "node-cron": "^3.0.3",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",

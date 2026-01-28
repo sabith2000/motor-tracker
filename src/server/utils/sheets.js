@@ -4,16 +4,22 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { formatDateIST, formatTimeIST } from './time.js';
+import {
+    getLogs,
+    markLogsAsExported,
+    deleteExportedLogs,
+    getArchive,
+    updateArchive
+} from './mongoStore.js';
+import { isDBConnected } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const PROJECT_ROOT = path.join(__dirname, '..', '..', '..');
 
-// Paths
+// Paths (kept for reference, credentials file still uses local path for dev)
 const CREDENTIALS_FILE = path.join(PROJECT_ROOT, 'credentials.json');
-const LOGS_FILE = path.join(PROJECT_ROOT, 'data', 'logs.json');
-const ARCHIVE_FILE = path.join(PROJECT_ROOT, 'data', 'archive.json');
 
 // Get Sheet ID from environment
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
@@ -182,23 +188,37 @@ export function scheduleExport() {
         console.log('🕛 Running scheduled daily export...');
 
         try {
-            // Read current logs
-            const logsData = JSON.parse(fs.readFileSync(LOGS_FILE, 'utf8'));
+            // Check if database is connected
+            if (!isDBConnected()) {
+                console.error('❌ Database not connected, skipping scheduled export');
+                return;
+            }
 
-            if (logsData.logs.length > 0) {
-                await exportToSheets(logsData.logs);
+            // Get unexported logs from MongoDB
+            const logs = await getLogs(true); // unexported only
+
+            if (logs.length > 0) {
+                await exportToSheets(logs.map(log => ({
+                    date: log.date,
+                    startTime: log.startTime,
+                    endTime: log.endTime,
+                    durationMinutes: log.durationMinutes
+                })));
+
+                // Mark as exported
+                await markLogsAsExported(logs.map(log => log._id));
 
                 // Update archive info
-                const archiveData = JSON.parse(fs.readFileSync(ARCHIVE_FILE, 'utf8'));
-                archiveData.lastExportDate = formatDateIST(new Date());
-                archiveData.totalArchivedEntries += logsData.logs.length;
-                fs.writeFileSync(ARCHIVE_FILE, JSON.stringify(archiveData, null, 2));
+                const archive = await getArchive();
+                await updateArchive({
+                    lastExportDate: formatDateIST(new Date()),
+                    totalArchivedEntries: archive.totalArchivedEntries + logs.length
+                });
 
-                // Clear logs after export
-                logsData.logs = [];
-                fs.writeFileSync(LOGS_FILE, JSON.stringify(logsData, null, 2));
+                // Delete exported logs
+                const deletedCount = await deleteExportedLogs();
 
-                console.log('✅ Daily export completed');
+                console.log(`✅ Daily export completed: ${logs.length} logs exported, ${deletedCount} deleted`);
             } else {
                 console.log('No logs to export today');
             }

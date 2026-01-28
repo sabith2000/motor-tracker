@@ -2,11 +2,11 @@ import express from 'express';
 import {
     getHealth,
     getHeartbeat,
-    getStatus,
+    getStatusEndpoint,
     startMotor,
     stopMotor,
-    getLogs,
-    exportLogs,
+    getLogsEndpoint,
+    exportLogsEndpoint,
     getDebug
 } from '../controllers/motorController.js';
 
@@ -14,11 +14,11 @@ const router = express.Router();
 
 router.get('/health', getHealth);
 router.get('/heartbeat', getHeartbeat);
-router.get('/status', getStatus);
+router.get('/status', getStatusEndpoint);
 router.post('/start', startMotor);
 router.post('/stop', stopMotor);
-router.get('/logs', getLogs);
-router.post('/export', exportLogs);
+router.get('/logs', getLogsEndpoint);
+router.post('/export', exportLogsEndpoint);
 router.get('/debug', getDebug);
 
 export default router;
