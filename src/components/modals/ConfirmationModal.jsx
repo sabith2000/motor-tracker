@@ -10,16 +10,17 @@ export default function ConfirmationModal({
     cancelText = 'Cancel',
     isDangerous = false
 }) {
-    if (!isOpen) return null
-
-    // Close on Escape key
+    // Close on Escape key - must be before any conditional returns (React Rules of Hooks)
     useEffect(() => {
+        if (!isOpen) return
         const handleEscape = (e) => {
             if (e.key === 'Escape') onCancel()
         }
         window.addEventListener('keydown', handleEscape)
         return () => window.removeEventListener('keydown', handleEscape)
-    }, [onCancel])
+    }, [isOpen, onCancel])
+
+    if (!isOpen) return null
 
     return (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-[60] p-4 animate-in fade-in duration-200">

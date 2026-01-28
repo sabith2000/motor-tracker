@@ -44,6 +44,8 @@ export function useMotorSync() {
                 console.log('📉 Remote stop detected');
                 setIsRunning(false);
                 setTempStartTime(null);
+                setElapsedTime(0);
+                elapsedTimeRef.current = 0;
                 if (data.lastStoppedTime) {
                     setLastActionTime(data.lastStoppedTime);
                     toast('Motor was stopped remotely', { icon: '📴' });

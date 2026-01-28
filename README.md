@@ -3,8 +3,12 @@
 A modern, production-ready full-stack application to track and monitor home water pump motor usage.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Version](https://img.shields.io/badge/version-v0.1.9-green.svg)
+![Version](https://img.shields.io/badge/version-v0.1.10-green.svg)
 ![Status](https://img.shields.io/badge/status-production-success.svg)
+
+## 🆕 Changelog (v0.1.10)
+- **UI Fix**: Adjusted position of "Motor was stopped" message to be above the controls for better visibility.
+- **Enhanced**: Improved `ControlPanel` component to better manage state displays.
 
 ## 🆕 Changelog (v0.1.9)
 - **Restored**: Detailed API endpoint logging in server console.

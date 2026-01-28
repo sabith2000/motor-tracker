@@ -9,7 +9,7 @@ import ConfirmationModal from './components/modals/ConfirmationModal'
 import { useMotorSync } from './hooks/useMotorSync'
 
 // App version
-const APP_VERSION = '0.1.10'
+const APP_VERSION = '0.1.11'
 
 function App() {
   const {
@@ -134,7 +134,7 @@ function App() {
         </div>
       )}
 
-      <Header appVersion={APP_VERSION} />
+      <Header />
 
       <button
         onClick={() => setShowSettings(true)}

@@ -3,6 +3,7 @@ import cron from 'node-cron';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { formatDateIST, formatTimeIST } from './time.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -71,26 +72,6 @@ async function getSheetsClient() {
 
     const client = await auth.getClient();
     return google.sheets({ version: 'v4', auth: client });
-}
-
-// Format date for IST
-function formatDateIST(date) {
-    return new Date(date).toLocaleDateString('en-IN', {
-        timeZone: 'Asia/Kolkata',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric'
-    });
-}
-
-// Format time for IST
-function formatTimeIST(date) {
-    return new Date(date).toLocaleTimeString('en-IN', {
-        timeZone: 'Asia/Kolkata',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-    });
 }
 
 // Export logs to Google Sheets

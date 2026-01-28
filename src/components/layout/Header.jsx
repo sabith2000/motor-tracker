@@ -1,4 +1,4 @@
-export default function Header({ appVersion }) {
+export default function Header() {
     return (
         <>
             <div className="absolute top-6 left-6 flex items-center gap-3">
