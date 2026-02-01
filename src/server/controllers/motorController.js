@@ -8,8 +8,7 @@ import {
     getLogCount,
     getArchive,
     updateArchive,
-    markLogsAsExported,
-    deleteExportedLogs
+    markLogsAsExported
 } from '../utils/mongoStore.js';
 
 // Max logs before auto-export
@@ -43,9 +42,7 @@ async function checkAndArchiveLogs() {
                 totalArchivedEntries: archive.totalArchivedEntries + logs.length
             });
 
-            // Delete exported logs to keep DB clean
-            const deletedCount = await deleteExportedLogs();
-            console.log(`✅ Archived ${deletedCount} logs successfully`);
+            console.log(`✅ Archived ${logs.length} logs to Google Sheets (kept in DB for history)`);
         }
     } catch (error) {
         console.error('❌ Failed to archive logs:', error.message);
@@ -229,14 +226,10 @@ export const exportLogsEndpoint = async (req, res) => {
             totalArchivedEntries: archive.totalArchivedEntries + logs.length
         });
 
-        // Delete exported logs
-        const deletedCount = await deleteExportedLogs();
-
         res.json({
             success: true,
             message: `Exported ${logs.length} logs to Google Sheets`,
-            exportedAt: `${formatDateIST(new Date())} ${formatTimeIST(new Date())}`,
-            deletedFromDB: deletedCount
+            exportedAt: `${formatDateIST(new Date())} ${formatTimeIST(new Date())}`
         });
     } catch (error) {
         console.error('Export failed:', error.message);

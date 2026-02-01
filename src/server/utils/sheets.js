@@ -7,7 +7,6 @@ import { formatDateIST, formatTimeIST } from './time.js';
 import {
     getLogs,
     markLogsAsExported,
-    deleteExportedLogs,
     getArchive,
     updateArchive
 } from './mongoStore.js';
@@ -215,10 +214,7 @@ export function scheduleExport() {
                     totalArchivedEntries: archive.totalArchivedEntries + logs.length
                 });
 
-                // Delete exported logs
-                const deletedCount = await deleteExportedLogs();
-
-                console.log(`✅ Daily export completed: ${logs.length} logs exported, ${deletedCount} deleted`);
+                console.log(`✅ Daily export completed: ${logs.length} logs exported (kept in DB for history)`);
             } else {
                 console.log('No logs to export today');
             }
