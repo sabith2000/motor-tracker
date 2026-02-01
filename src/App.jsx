@@ -9,7 +9,7 @@ import ConfirmationModal from './components/modals/ConfirmationModal'
 import { useMotorSync } from './hooks/useMotorSync'
 
 // App version
-const APP_VERSION = '0.2.1'
+const APP_VERSION = '0.2.2'
 
 function App() {
   const {
@@ -85,42 +85,63 @@ function App() {
     return () => { if (heartbeatRef.current) clearInterval(heartbeatRef.current); };
   }, [isRunning, isOffline, isPageVisible, syncWithServer]);
 
+  // Connection state
+  const isConnected = !isOffline && !isServerWaking && !serverError;
 
-  // Loading/Error States
+  // Loading State
   if (isServerWaking) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-6">
         <Toaster position="top-center" />
-        <div className="text-center">
-          <div className="w-20 h-20 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-6"></div>
-          <h1 className="text-3xl md:text-4xl font-bold text-white mb-4">Connecting to Server...</h1>
-          <p className="text-xl text-slate-400">Please wait, the server is waking up</p>
+        <div className="text-center animate-fade-in-up">
+          <img
+            src="/logo.svg"
+            alt="Motor Tracker"
+            className="w-20 h-20 mx-auto mb-6 animate-pulse-glow"
+          />
+          <h1 className="brand-title text-2xl md:text-3xl mb-3">Motor Tracker</h1>
+          <p className="text-slate-400 text-lg mb-6">Connecting to server...</p>
+          <div className="flex items-center justify-center gap-2 text-slate-500">
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+            <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+          </div>
         </div>
       </div>
     )
   }
 
+  // Error State
   if (serverError) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-6">
         <Toaster position="top-center" />
-        <div className="text-center">
-          <div className="text-6xl mb-6">⚠️</div>
-          <h1 className="text-3xl md:text-4xl font-bold text-red-400 mb-4">Connection Failed</h1>
-          <p className="text-xl text-slate-400 mb-8">{serverError}</p>
-          <button onClick={() => window.location.reload()} className="px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white text-xl rounded-xl transition-colors">Try Again</button>
+        <div className="text-center animate-fade-in-up">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-red-500/10 flex items-center justify-center">
+            <svg className="w-10 h-10 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Connection Failed</h1>
+          <p className="text-slate-400 mb-8 max-w-sm">{serverError}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-xl transition-colors"
+          >
+            Try Again
+          </button>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-6 relative">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex flex-col items-center justify-center p-6 pt-20 pb-24 relative">
       <Toaster
         position={toastPosition}
         containerStyle={{
-          bottom: toastPosition === 'bottom-center' ? 80 : undefined,
-          top: toastPosition === 'top-center' ? 20 : undefined
+          bottom: toastPosition === 'bottom-center' ? 100 : undefined,
+          top: toastPosition === 'top-center' ? 60 : undefined
         }}
         toastOptions={{
           duration: 3000,
@@ -129,19 +150,19 @@ function App() {
       />
 
       {isOffline && (
-        <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 z-50">
-          📡 No internet connection - Actions disabled
+        <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 z-50 text-sm">
+          📡 No internet connection
         </div>
       )}
 
-      <Header />
+      <Header isConnected={isConnected} />
 
       <button
         onClick={() => setShowSettings(true)}
-        className="absolute top-6 right-6 p-3 bg-slate-800/80 hover:bg-slate-700 rounded-xl border border-slate-700 transition-colors"
+        className="absolute top-4 right-4 p-2.5 bg-slate-800/80 hover:bg-slate-700 rounded-xl border border-slate-700/50 transition-colors"
         aria-label="Settings"
       >
-        <svg className="w-6 h-6 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
@@ -174,17 +195,18 @@ function App() {
         lastActionTime={lastActionTime}
       />
 
-
-
       {!lastActionTime && !isRunning && (
-        <div className="mt-8 px-6 py-3 bg-blue-900/30 rounded-xl border border-blue-500/30">
-          <p className="text-lg text-blue-300 text-center">
-            💡 Press the big green button above to start the motor
+        <div className="mt-8 px-5 py-3 stat-card rounded-xl animate-fade-in-up">
+          <p className="text-base text-blue-300 text-center flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Tap the green button to start the motor
           </p>
         </div>
       )}
 
-      <Footer appVersion={APP_VERSION} />
+      <Footer appVersion={APP_VERSION} isConnected={isConnected} />
 
       <ConfirmationModal
         isOpen={confirmation.isOpen}
