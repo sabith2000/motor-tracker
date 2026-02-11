@@ -296,32 +296,34 @@ export async function exportToSheets(logs) {
         const sheets = await getSheetsClient();
         const exportTimestamp = `${formatDateIST(new Date())} ${formatTimeIST(new Date())}`;
 
-        // ── Step 1: Ensure headers exist ──────────────────────────
-        let headersExist = false;
+        // ── Step 1: Ensure headers exist (all 6 columns: A-F) ──────
+        let headersComplete = false;
         try {
             const headerCheck = await sheets.spreadsheets.values.get({
                 spreadsheetId: SHEET_ID,
-                range: 'Sheet1!A1:E1'
+                range: 'Sheet1!A1:F1'
             });
             const firstRow = headerCheck.data.values?.[0] || [];
-            headersExist = firstRow.length > 0 && firstRow[0] === COLUMNS[0];
+            // Headers are complete if all 6 columns match
+            headersComplete = firstRow.length >= COLUMN_COUNT && firstRow[0] === COLUMNS[0];
         } catch {
-            // Sheet might be completely empty — headers don't exist
-            headersExist = false;
+            // Sheet might be completely empty
+            headersComplete = false;
         }
 
         const formatRequests = [];
 
-        if (!headersExist) {
-            // Write headers as USER_ENTERED (they're plain text labels, safe)
+        if (!headersComplete) {
+            // Write/overwrite all 6 headers (handles both empty sheets and old 5-column sheets)
             await sheets.spreadsheets.values.update({
                 spreadsheetId: SHEET_ID,
-                range: 'Sheet1!A1:E1',
+                range: 'Sheet1!A1:F1',
                 valueInputOption: 'RAW',
                 resource: { values: [COLUMNS] }
             });
             formatRequests.push(buildHeaderFormatRequest());
             formatRequests.push(buildFreezeRowRequest());
+            console.log('📋 Headers written/updated to 6 columns (A-F)');
         }
 
         // ── Step 2: Find the true last row ──────────────────────────
