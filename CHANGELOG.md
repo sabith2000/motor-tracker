@@ -19,6 +19,8 @@ All notable changes to Motor Tracker are documented here.
 - **Bug**: Elapsed time not resetting to 0 after stopping motor
 - **Bug**: Duration precision — changed from whole-minute rounding to 1 decimal (e.g. `2.5 min`)
 - **Bug**: `SettingsModal` useEffect missing dependency causing lint warnings
+- **Bug**: Google Sheets dates appearing as serial numbers (e.g. "46328") — switched to RAW input
+- **Bug**: Google Sheets data overwriting existing rows — now writes at explicit row position
 
 ### Changed
 - Refactored `motorController.js` — extracted shared `exportAndArchiveLogs()` helper (removed ~25 lines of duplication)

@@ -295,48 +295,56 @@ export async function exportToSheets(logs) {
         const sheets = await getSheetsClient();
         const exportTimestamp = `${formatDateIST(new Date())} ${formatTimeIST(new Date())}`;
 
-        // Check if headers already exist
-        const existingData = await sheets.spreadsheets.values.get({
-            spreadsheetId: SHEET_ID,
-            range: 'Sheet1!A1:E1'
-        });
+        // ── Step 1: Ensure headers exist ──────────────────────────
+        let headersExist = false;
+        try {
+            const headerCheck = await sheets.spreadsheets.values.get({
+                spreadsheetId: SHEET_ID,
+                range: 'Sheet1!A1:E1'
+            });
+            const firstRow = headerCheck.data.values?.[0] || [];
+            headersExist = firstRow.length > 0 && firstRow[0] === COLUMNS[0];
+        } catch {
+            // Sheet might be completely empty — headers don't exist
+            headersExist = false;
+        }
 
-        const firstRow = existingData.data.values?.[0] || [];
-        const headersExist = firstRow.length > 0 && firstRow[0] === COLUMNS[0];
-
-        // Setup formatting requests
         const formatRequests = [];
 
-        // If headers don't exist, create them
         if (!headersExist) {
+            // Write headers as USER_ENTERED (they're plain text labels, safe)
             await sheets.spreadsheets.values.update({
                 spreadsheetId: SHEET_ID,
                 range: 'Sheet1!A1:E1',
-                valueInputOption: 'USER_ENTERED',
+                valueInputOption: 'RAW',
                 resource: { values: [COLUMNS] }
             });
-
             formatRequests.push(buildHeaderFormatRequest());
             formatRequests.push(buildFreezeRowRequest());
         }
 
-        // Get current row count to calculate where new data starts
-        const allData = await sheets.spreadsheets.values.get({
+        // ── Step 2: Find the true last row ──────────────────────────
+        // Read ALL of column A to find the exact last occupied row.
+        // This is the most reliable way — no guessing, no off-by-one.
+        const colA = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
             range: 'Sheet1!A:A'
         });
-        const currentRowCount = allData.data.values?.length || 1;
+        const lastOccupiedRow = colA.data.values?.length || 1; // 1 = just header
+        const nextRow = lastOccupiedRow + 1; // 1-indexed row number for the first new data row
 
-        // Prepare data rows
+        console.log(`📍 Sheet last occupied row: ${lastOccupiedRow}, will write starting at row ${nextRow}`);
+
+        // ── Step 3: Prepare data ──────────────────────────────────
         const dataRows = logs.map(log => [
-            log.date,
-            log.startTime,
-            log.endTime,
-            log.durationMinutes,
-            exportTimestamp
+            log.date,            // e.g. "11/02/2026" — stays as text with RAW
+            log.startTime,       // e.g. "10:30 pm"   — stays as text with RAW
+            log.endTime,         // e.g. "11:15 pm"   — stays as text with RAW
+            log.durationMinutes, // e.g. 2.5           — stays as number with RAW
+            exportTimestamp       // e.g. "11/02/2026 10:30 pm"
         ]);
 
-        // Create summary row
+        // Summary row
         const totalDuration = logs.reduce((sum, log) => sum + (log.durationMinutes || 0), 0);
         const summaryRow = [
             `📊 Batch: ${logs.length} sessions`,
@@ -346,22 +354,29 @@ export async function exportToSheets(logs) {
             exportTimestamp
         ];
 
-        // Append data rows + summary row
         const allRows = [...dataRows, summaryRow];
-        await sheets.spreadsheets.values.append({
+
+        // ── Step 4: Write data at explicit row position ─────────────
+        // Using values.update() with RAW input to:
+        //   1. Prevent date/time auto-parsing (no more "46328" serial numbers)
+        //   2. Write at an EXACT position (no more overwriting old data)
+        const writeRange = `Sheet1!A${nextRow}:E${nextRow + allRows.length - 1}`;
+
+        await sheets.spreadsheets.values.update({
             spreadsheetId: SHEET_ID,
-            range: 'Sheet1!A:E',
-            valueInputOption: 'USER_ENTERED',
-            insertDataOption: 'INSERT_ROWS',
+            range: writeRange,
+            valueInputOption: 'RAW',
             resource: { values: allRows }
         });
 
-        // Calculate row indices for formatting (0-indexed for API)
-        const dataStartRow = currentRowCount;
+        console.log(`📝 Wrote ${allRows.length} rows to range ${writeRange}`);
+
+        // ── Step 5: Apply formatting ────────────────────────────────
+        // Row indices are 0-indexed for the Sheets batchUpdate API
+        const dataStartRow = nextRow - 1;  // Convert 1-indexed to 0-indexed
         const dataEndRow = dataStartRow + dataRows.length;
         const summaryRowIndex = dataEndRow;
 
-        // Apply formatting
         formatRequests.push(...buildZebraStripeRequests(dataStartRow, dataEndRow));
         formatRequests.push(buildSummaryRowFormatRequest(summaryRowIndex));
         formatRequests.push(buildDurationFormatRequest(dataStartRow, dataEndRow));
@@ -374,7 +389,7 @@ export async function exportToSheets(logs) {
             });
         }
 
-        console.log(`✅ Exported ${logs.length} logs to Google Sheets (${exportTimestamp})`);
+        console.log(`✅ Exported ${logs.length} logs to Google Sheets at rows ${nextRow}-${nextRow + allRows.length - 1} (${exportTimestamp})`);
         return true;
     } catch (error) {
         const friendlyMessage = classifyExportError(error);
