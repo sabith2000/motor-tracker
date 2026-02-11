@@ -56,7 +56,7 @@ async function checkAndArchiveLogs() {
         if (logCount >= MAX_LOG_ENTRIES) {
             console.log('📦 Log limit reached, archiving to Google Sheets...');
 
-            const logs = await getLogs(true); // Get unexported logs
+            const logs = await getLogs('unexported');
             if (logs.length === 0) return;
 
             const exportedCount = await exportAndArchiveLogs(logs);
@@ -226,7 +226,7 @@ export const getLogsEndpoint = async (req, res) => {
 export const exportLogsEndpoint = async (req, res) => {
     try {
         const forceReExport = req.query.force === 'true';
-        const logs = await getLogs(!forceReExport); // force=true → get ALL logs; default → unexported only
+        const logs = await getLogs(forceReExport ? 'exported' : 'unexported');
 
         if (logs.length === 0) {
             const message = forceReExport

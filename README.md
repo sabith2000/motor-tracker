@@ -3,7 +3,7 @@
 A modern, production-ready full-stack application to track and monitor home water pump motor usage.
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen.svg)](https://motor-tracker.onrender.com/)
-![Version](https://img.shields.io/badge/version-v0.2.6--dev-blue.svg)
+![Version](https://img.shields.io/badge/version-v0.2.7--dev-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 🔗 **Live Demo**: [motor-tracker.onrender.com](https://motor-tracker.onrender.com/)

@@ -54,32 +54,17 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
             return
         }
 
-        const totalLogs = stats?.totalLogs || 0
+        const exportedCount = stats?.exportedCount || 0
 
-        // Stubborn multi-step confirmation for re-export
         setConfirmation({
             isOpen: true,
-            title: '⚠️ Re-export ALL Logs?',
-            message: `You are about to re-export ALL ${totalLogs} logs to Google Sheets.\n\nThis will create DUPLICATE entries in your sheet if the data already exists there.\n\nAre you absolutely sure?`,
-            confirmText: `Yes, Re-export All ${totalLogs} Logs`,
+            title: '⚠️ Re-export Logs?',
+            message: `You are about to re-export ${exportedCount} previously exported logs.\n\nThis will create DUPLICATE entries in your sheet if the data already exists there. Only use this if you deleted rows from the sheet and need to re-add them.`,
+            confirmText: `Re-export ${exportedCount} Logs`,
             isDangerous: true,
             onConfirm: async () => {
                 setConfirmation(prev => ({ ...prev, isOpen: false }))
-
-                // Second stubborn confirmation
-                setTimeout(() => {
-                    setConfirmation({
-                        isOpen: true,
-                        title: '🚨 Final Confirmation',
-                        message: `This is your LAST chance to cancel.\n\nAll ${totalLogs} logs will be appended to the sheet, including logs that were already exported before.\n\nThis action cannot be undone.`,
-                        confirmText: 'I Understand, Re-export Now',
-                        isDangerous: true,
-                        onConfirm: async () => {
-                            setConfirmation(prev => ({ ...prev, isOpen: false }))
-                            await performExport(true)
-                        }
-                    })
-                }, 300)
+                await performExport(true)
             }
         })
     }
@@ -193,8 +178,8 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
                                 onClick={handleExportNew}
                                 disabled={isExporting || isOffline || (stats && stats.unexportedCount === 0)}
                                 className={`w-full py-2.5 px-4 rounded-lg text-white text-sm font-medium transition-all ${isExporting || isOffline || (stats && stats.unexportedCount === 0)
-                                        ? 'bg-slate-600 cursor-not-allowed opacity-60'
-                                        : 'bg-green-600 hover:bg-green-500 active:scale-[0.98]'
+                                    ? 'bg-slate-600 cursor-not-allowed opacity-60'
+                                    : 'bg-green-600 hover:bg-green-500 active:scale-[0.98]'
                                     }`}
                             >
                                 {isExporting && exportMode === 'new' ? (
@@ -210,10 +195,10 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
                             {/* Re-export All */}
                             <button
                                 onClick={handleReExportAll}
-                                disabled={isExporting || isOffline || (stats && stats.totalLogs === 0)}
-                                className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all border ${isExporting || isOffline || (stats && stats.totalLogs === 0)
-                                        ? 'border-slate-600 text-slate-500 cursor-not-allowed opacity-60'
-                                        : 'border-amber-600/50 text-amber-400 hover:bg-amber-600/10 active:scale-[0.98]'
+                                disabled={isExporting || isOffline || (stats && stats.exportedCount === 0)}
+                                className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all border ${isExporting || isOffline || (stats && stats.exportedCount === 0)
+                                    ? 'border-slate-600 text-slate-500 cursor-not-allowed opacity-60'
+                                    : 'border-amber-600/50 text-amber-400 hover:bg-amber-600/10 active:scale-[0.98]'
                                     }`}
                             >
                                 {isExporting && exportMode === 'force' ? (
@@ -222,7 +207,7 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
                                         Re-exporting...
                                     </span>
                                 ) : (
-                                    `🔄 Re-export All Logs${stats?.totalLogs ? ` (${stats.totalLogs})` : ''}`
+                                    `🔄 Re-export Logs${stats?.exportedCount ? ` (${stats.exportedCount})` : ''}`
                                 )}
                             </button>
 

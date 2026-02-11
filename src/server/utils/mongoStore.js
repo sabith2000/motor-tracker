@@ -70,14 +70,18 @@ export async function addLog(logEntry) {
 }
 
 /**
- * Get all logs (optionally filter by export status)
+ * Get logs filtered by export status.
+ * @param {'unexported'|'exported'|'all'} filter - Which logs to return
  */
-export async function getLogs(unexportedOnly = false) {
+export async function getLogs(filter = 'all') {
     if (!isDBConnected()) {
         throw new Error('Database not connected');
     }
 
-    const query = unexportedOnly ? { exportedToSheets: false } : {};
+    let query = {};
+    if (filter === 'unexported') query = { exportedToSheets: false };
+    else if (filter === 'exported') query = { exportedToSheets: true };
+
     const logs = await Log.find(query).sort({ rawStartTime: -1 });
     return logs;
 }

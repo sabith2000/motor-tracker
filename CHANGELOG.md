@@ -4,6 +4,14 @@ All notable changes to Motor Tracker are documented here.
 
 ---
 
+## [0.2.7-dev] - 2026-02-12
+
+### Fixed
+- **Re-export Logic**: Fixed bug where re-export included unexported logs. Now only includes logs that were previously exported.
+- **Re-export UX**: Simplified re-export confirmation to a single dialog (removed double confirmation).
+
+---
+
 ## [0.2.6-dev] - 2026-02-11
 
 ### Added

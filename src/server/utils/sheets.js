@@ -418,7 +418,7 @@ export function scheduleExport() {
                 return;
             }
 
-            const logs = await getLogs(true); // unexported only
+            const logs = await getLogs('unexported');
 
             if (logs.length > 0) {
                 await exportToSheets(logs.map(log => ({
