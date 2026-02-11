@@ -93,7 +93,8 @@ export async function getLogCount() {
 }
 
 /**
- * Mark specific logs as exported to Google Sheets
+ * Mark specific logs as exported to Google Sheets.
+ * Increments exportCount and updates lastExportedAt for history tracking.
  */
 export async function markLogsAsExported(logIds) {
     if (!isDBConnected()) {
@@ -102,8 +103,27 @@ export async function markLogsAsExported(logIds) {
 
     await Log.updateMany(
         { _id: { $in: logIds } },
-        { exportedToSheets: true }
+        {
+            exportedToSheets: true,
+            lastExportedAt: new Date(),
+            $inc: { exportCount: 1 }
+        }
     );
+}
+
+/**
+ * Get export stats for frontend display
+ */
+export async function getExportStats() {
+    if (!isDBConnected()) {
+        throw new Error('Database not connected');
+    }
+
+    const totalLogs = await Log.countDocuments();
+    const unexportedCount = await Log.countDocuments({ exportedToSheets: false });
+    const exportedCount = totalLogs - unexportedCount;
+
+    return { totalLogs, unexportedCount, exportedCount };
 }
 
 /**

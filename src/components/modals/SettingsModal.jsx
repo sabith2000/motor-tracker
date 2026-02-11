@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react'
 import toast from 'react-hot-toast'
-import { exportToSheets, getLogs } from '../../api'
+import { exportToSheets, getExportStats } from '../../api'
 
 export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmation, appVersion }) {
     const [isExporting, setIsExporting] = useState(false)
-    const [stats, setStats] = useState({ totalSessions: 0, lastRun: null })
+    const [exportMode, setExportMode] = useState(null) // 'new' or 'force'
+    const [stats, setStats] = useState(null)
     const [isLoadingStats, setIsLoadingStats] = useState(true)
 
     // Fetch stats when modal opens
@@ -14,14 +15,10 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
         async function fetchStats() {
             setIsLoadingStats(true)
             try {
-                const data = await getLogs()
-                const logs = data.logs || []
-                setStats({
-                    totalSessions: data.count || logs.length,
-                    lastRun: logs.length > 0 ? `${logs[0].date} ${logs[0].endTime}` : null
-                })
+                const data = await getExportStats()
+                setStats(data)
             } catch (error) {
-                console.error('Failed to fetch stats:', error)
+                console.error('Failed to fetch export stats:', error)
             } finally {
                 setIsLoadingStats(false)
             }
@@ -32,7 +29,7 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
 
     if (!isOpen) return null
 
-    const handleExportClick = () => {
+    const handleExportNew = () => {
         if (isOffline) {
             toast.error('Cannot export while offline')
             return
@@ -40,26 +37,69 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
 
         setConfirmation({
             isOpen: true,
-            title: 'Export Logs?',
-            message: 'This will export all logs to your Google Sheet.\n\nLogs are also automatically exported every night at midnight.',
-            confirmText: 'Export Now',
+            title: 'Export New Logs?',
+            message: `This will export ${stats?.unexportedCount || 'new'} unexported logs to your Google Sheet.\n\nLogs are also auto-exported every midnight IST.`,
+            confirmText: 'Export New',
             isDangerous: false,
             onConfirm: async () => {
                 setConfirmation(prev => ({ ...prev, isOpen: false }))
-                await performExport()
+                await performExport(false)
             }
         })
     }
 
-    const performExport = async () => {
+    const handleReExportAll = () => {
+        if (isOffline) {
+            toast.error('Cannot export while offline')
+            return
+        }
+
+        const totalLogs = stats?.totalLogs || 0
+
+        // Stubborn multi-step confirmation for re-export
+        setConfirmation({
+            isOpen: true,
+            title: '⚠️ Re-export ALL Logs?',
+            message: `You are about to re-export ALL ${totalLogs} logs to Google Sheets.\n\nThis will create DUPLICATE entries in your sheet if the data already exists there.\n\nAre you absolutely sure?`,
+            confirmText: `Yes, Re-export All ${totalLogs} Logs`,
+            isDangerous: true,
+            onConfirm: async () => {
+                setConfirmation(prev => ({ ...prev, isOpen: false }))
+
+                // Second stubborn confirmation
+                setTimeout(() => {
+                    setConfirmation({
+                        isOpen: true,
+                        title: '🚨 Final Confirmation',
+                        message: `This is your LAST chance to cancel.\n\nAll ${totalLogs} logs will be appended to the sheet, including logs that were already exported before.\n\nThis action cannot be undone.`,
+                        confirmText: 'I Understand, Re-export Now',
+                        isDangerous: true,
+                        onConfirm: async () => {
+                            setConfirmation(prev => ({ ...prev, isOpen: false }))
+                            await performExport(true)
+                        }
+                    })
+                }, 300)
+            }
+        })
+    }
+
+    const performExport = async (force) => {
         setIsExporting(true)
+        setExportMode(force ? 'force' : 'new')
         try {
-            const result = await exportToSheets()
-            toast.success(result.message, { icon: '📊', duration: 4000 })
-            onClose()
+            const result = await exportToSheets(force)
+            const icon = force ? '🔄' : '📊'
+            toast.success(`${result.message} (${result.mode})`, { icon, duration: 4000 })
+
+            // Refresh stats after export
+            try {
+                const updatedStats = await getExportStats()
+                setStats(updatedStats)
+            } catch { /* ignore stats refresh failure */ }
         } catch (error) {
-            if (error.message?.includes('No logs')) {
-                toast.error('No logs to export', { icon: '📭' })
+            if (error.message?.includes('No logs') || error.message?.includes('No new logs')) {
+                toast.error(error.message, { icon: '📭' })
             } else if (error.message?.includes('not configured')) {
                 toast.error('Google Sheets not configured', { icon: '⚙️' })
             } else {
@@ -67,6 +107,7 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
             }
         } finally {
             setIsExporting(false)
+            setExportMode(null)
         }
     }
 
@@ -93,36 +134,48 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
                 </div>
 
                 <div className="p-5 space-y-4">
-                    {/* Quick Stats */}
+                    {/* Export Stats Card */}
                     <div className="stat-card rounded-xl p-4">
                         <h3 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                             </svg>
-                            Quick Stats
+                            Export Overview
                         </h3>
                         {isLoadingStats ? (
                             <div className="flex items-center gap-2 text-slate-500">
                                 <div className="w-4 h-4 border-2 border-slate-500 border-t-transparent rounded-full animate-spin" />
                                 Loading...
                             </div>
-                        ) : (
-                            <div className="grid grid-cols-2 gap-3">
-                                <div className="bg-slate-900/50 rounded-lg p-3">
-                                    <p className="text-2xl font-bold text-white">{stats.totalSessions}</p>
-                                    <p className="text-xs text-slate-500">Total Sessions</p>
+                        ) : stats ? (
+                            <div className="grid grid-cols-3 gap-2">
+                                <div className="bg-slate-900/50 rounded-lg p-3 text-center">
+                                    <p className="text-xl font-bold text-white">{stats.totalLogs}</p>
+                                    <p className="text-xs text-slate-500">Total</p>
                                 </div>
-                                <div className="bg-slate-900/50 rounded-lg p-3">
-                                    <p className="text-sm font-medium text-white truncate">
-                                        {stats.lastRun || 'No runs yet'}
+                                <div className="bg-slate-900/50 rounded-lg p-3 text-center">
+                                    <p className={`text-xl font-bold ${stats.unexportedCount > 0 ? 'text-amber-400' : 'text-green-400'}`}>
+                                        {stats.unexportedCount}
                                     </p>
-                                    <p className="text-xs text-slate-500">Last Run</p>
+                                    <p className="text-xs text-slate-500">Pending</p>
+                                </div>
+                                <div className="bg-slate-900/50 rounded-lg p-3 text-center">
+                                    <p className="text-xl font-bold text-green-400">{stats.exportedCount}</p>
+                                    <p className="text-xs text-slate-500">Exported</p>
                                 </div>
                             </div>
+                        ) : (
+                            <p className="text-slate-500 text-sm">Failed to load stats</p>
+                        )}
+
+                        {stats?.lastExportDate && (
+                            <p className="text-xs text-slate-500 mt-2 text-center">
+                                Last export: {stats.lastExportDate}
+                            </p>
                         )}
                     </div>
 
-                    {/* Export Section */}
+                    {/* Export Actions */}
                     <div className="stat-card rounded-xl p-4">
                         <h3 className="text-sm font-medium text-slate-400 mb-2 flex items-center gap-2">
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -131,26 +184,52 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
                             Export to Google Sheets
                         </h3>
                         <p className="text-slate-500 text-xs mb-3">
-                            Export logs to your connected Google Sheet. Auto-exports at midnight IST.
+                            Auto-exports every midnight IST. Manual export options below.
                         </p>
 
-                        <button
-                            onClick={handleExportClick}
-                            disabled={isExporting || isOffline}
-                            className={`w-full py-2.5 px-4 rounded-lg text-white text-sm font-medium transition-all ${isExporting || isOffline
-                                ? 'bg-slate-600 cursor-not-allowed'
-                                : 'bg-green-600 hover:bg-green-500 active:scale-[0.98]'
-                                }`}
-                        >
-                            {isExporting ? (
-                                <span className="flex items-center justify-center gap-2">
-                                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                    Exporting...
-                                </span>
-                            ) : (
-                                'Export Now'
-                            )}
-                        </button>
+                        <div className="space-y-2">
+                            {/* Export New Logs */}
+                            <button
+                                onClick={handleExportNew}
+                                disabled={isExporting || isOffline || (stats && stats.unexportedCount === 0)}
+                                className={`w-full py-2.5 px-4 rounded-lg text-white text-sm font-medium transition-all ${isExporting || isOffline || (stats && stats.unexportedCount === 0)
+                                        ? 'bg-slate-600 cursor-not-allowed opacity-60'
+                                        : 'bg-green-600 hover:bg-green-500 active:scale-[0.98]'
+                                    }`}
+                            >
+                                {isExporting && exportMode === 'new' ? (
+                                    <span className="flex items-center justify-center gap-2">
+                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                        Exporting...
+                                    </span>
+                                ) : (
+                                    `📊 Export New Logs${stats?.unexportedCount ? ` (${stats.unexportedCount})` : ''}`
+                                )}
+                            </button>
+
+                            {/* Re-export All */}
+                            <button
+                                onClick={handleReExportAll}
+                                disabled={isExporting || isOffline || (stats && stats.totalLogs === 0)}
+                                className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all border ${isExporting || isOffline || (stats && stats.totalLogs === 0)
+                                        ? 'border-slate-600 text-slate-500 cursor-not-allowed opacity-60'
+                                        : 'border-amber-600/50 text-amber-400 hover:bg-amber-600/10 active:scale-[0.98]'
+                                    }`}
+                            >
+                                {isExporting && exportMode === 'force' ? (
+                                    <span className="flex items-center justify-center gap-2">
+                                        <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                                        Re-exporting...
+                                    </span>
+                                ) : (
+                                    `🔄 Re-export All Logs${stats?.totalLogs ? ` (${stats.totalLogs})` : ''}`
+                                )}
+                            </button>
+
+                            <p className="text-slate-600 text-xs text-center mt-1">
+                                Re-export will create duplicate entries in the sheet
+                            </p>
+                        </div>
                     </div>
 
                     {/* About Section */}

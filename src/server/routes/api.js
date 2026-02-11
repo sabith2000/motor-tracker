@@ -7,6 +7,7 @@ import {
     stopMotor,
     getLogsEndpoint,
     exportLogsEndpoint,
+    exportStatsEndpoint,
     getDebug
 } from '../controllers/motorController.js';
 
@@ -19,6 +20,7 @@ router.post('/start', startMotor);
 router.post('/stop', stopMotor);
 router.get('/logs', getLogsEndpoint);
 router.post('/export', exportLogsEndpoint);
+router.get('/export-stats', exportStatsEndpoint);
 router.get('/debug', getDebug);
 
 export default router;

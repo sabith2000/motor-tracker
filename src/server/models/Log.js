@@ -7,7 +7,9 @@ const logSchema = new mongoose.Schema({
     durationMinutes: { type: Number, required: true },
     rawStartTime: { type: Date, required: true, index: true },
     rawEndTime: { type: Date, required: true },
-    exportedToSheets: { type: Boolean, default: false }
+    exportedToSheets: { type: Boolean, default: false },
+    exportCount: { type: Number, default: 0 },
+    lastExportedAt: { type: Date, default: null }
 }, { timestamps: true });
 
 export default mongoose.model('Log', logSchema);

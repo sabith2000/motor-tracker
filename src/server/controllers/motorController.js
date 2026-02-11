@@ -8,7 +8,8 @@ import {
     getLogCount,
     getArchive,
     updateArchive,
-    markLogsAsExported
+    markLogsAsExported,
+    getExportStats
 } from '../utils/mongoStore.js';
 
 // Max logs before auto-export
@@ -224,23 +225,48 @@ export const getLogsEndpoint = async (req, res) => {
 
 export const exportLogsEndpoint = async (req, res) => {
     try {
-        const logs = await getLogs(true); // Get unexported only
+        const forceReExport = req.query.force === 'true';
+        const logs = await getLogs(!forceReExport); // force=true → get ALL logs; default → unexported only
 
         if (logs.length === 0) {
-            return res.status(400).json({ success: false, error: 'No logs to export' });
+            const message = forceReExport
+                ? 'No logs found in the database'
+                : 'No new logs to export (all logs already exported)';
+            return res.status(400).json({ success: false, error: message });
         }
 
         const exportedCount = await exportAndArchiveLogs(logs);
+        const mode = forceReExport ? 're-export (all logs)' : 'new logs only';
 
         res.json({
             success: true,
             message: `Exported ${exportedCount} logs to Google Sheets`,
+            mode,
+            exportedCount,
             exportedAt: `${formatDateIST(new Date())} ${formatTimeIST(new Date())}`
         });
     } catch (error) {
         console.error('Export failed:', error.message);
         console.error('Stack:', error.stack);
         res.status(500).json({ success: false, error: error.message || 'Export failed' });
+    }
+};
+
+export const exportStatsEndpoint = async (req, res) => {
+    try {
+        const stats = await getExportStats();
+        const archive = await getArchive();
+
+        res.json({
+            totalLogs: stats.totalLogs,
+            unexportedCount: stats.unexportedCount,
+            exportedCount: stats.exportedCount,
+            lastExportDate: archive.lastExportDate,
+            totalArchivedEntries: archive.totalArchivedEntries
+        });
+    } catch (error) {
+        console.error('Export stats error:', error.message);
+        res.status(500).json({ error: 'Failed to get export stats' });
     }
 };
 

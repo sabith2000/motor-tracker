@@ -80,8 +80,14 @@ export async function getLogs() {
 }
 
 // Manual export to Google Sheets
-export async function exportToSheets() {
-    return fetchWithRetry(`${API_BASE}/export`, { method: 'POST' });
+export async function exportToSheets(force = false) {
+    const url = force ? `${API_BASE}/export?force=true` : `${API_BASE}/export`;
+    return fetchWithRetry(url, { method: 'POST' });
+}
+
+// Get export stats (total, unexported, exported counts)
+export async function getExportStats() {
+    return fetchWithRetry(`${API_BASE}/export-stats`);
 }
 
 // Heartbeat - get server time and current status

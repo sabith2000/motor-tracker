@@ -4,6 +4,21 @@ All notable changes to Motor Tracker are documented here.
 
 ---
 
+## [0.2.6-dev] - 2026-02-11
+
+### Added
+- **Re-export All**: Force re-export of all logs with stubborn double confirmation
+- **Export Stats**: Dashboard showing Total / Pending / Exported log counts
+- **Export History Tracking**: `exportCount` and `lastExportedAt` fields on Log model
+- **Export Stats API**: New `GET /api/export-stats` endpoint
+
+### Changed
+- **Export endpoint** now supports `?force=true` query param for re-exporting
+- **SettingsModal** redesigned with dual export buttons (Export New + Re-export All)
+- **Frontend API** auto-detects dev vs production backend URL
+
+---
+
 ## [0.2.5-dev] - 2026-02-11
 
 ### Changed
