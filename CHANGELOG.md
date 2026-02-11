@@ -4,6 +4,15 @@ All notable changes to Motor Tracker are documented here.
 
 ---
 
+## [0.2.5-dev] - 2026-02-11
+
+### Changed
+- **Google Sheets**: Moved batch summary from separate row to column F ("Batch Info") on last data row
+- Keeps data rows clean and filterable as the sheet grows
+- Batch info styled as bold italic gray text (clearly metadata, not data)
+
+---
+
 ## [0.2.4-dev] - 2026-02-11
 
 ### Added

@@ -23,7 +23,7 @@ const CREDENTIALS_FILE = path.join(PROJECT_ROOT, 'credentials.json');
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
 // Column definitions
-const COLUMNS = ['Date', 'Start Time', 'End Time', 'Duration (min)', 'Exported At'];
+const COLUMNS = ['Date', 'Start Time', 'End Time', 'Duration (min)', 'Exported At', 'Batch Info'];
 const COLUMN_COUNT = COLUMNS.length;
 
 // ============================================
@@ -182,29 +182,30 @@ function buildZebraStripeRequests(startRowIndex, endRowIndex) {
 }
 
 /**
- * Format the summary row: bold text on a dark background.
+ * Format the Batch Info cell (column F) on the last row of a batch.
+ * Italic gray text so it's clearly metadata, not primary data.
  */
-function buildSummaryRowFormatRequest(rowIndex) {
+function buildBatchInfoFormatRequest(rowIndex) {
     return {
         repeatCell: {
             range: {
                 sheetId: 0,
                 startRowIndex: rowIndex,
                 endRowIndex: rowIndex + 1,
-                startColumnIndex: 0,
-                endColumnIndex: COLUMN_COUNT
+                startColumnIndex: 5,  // Column F (0-indexed)
+                endColumnIndex: 6
             },
             cell: {
                 userEnteredFormat: {
-                    backgroundColor: { red: 0.9, green: 0.93, blue: 0.98 },
                     textFormat: {
                         bold: true,
-                        fontSize: 10
-                    },
-                    horizontalAlignment: 'CENTER'
+                        italic: true,
+                        fontSize: 9,
+                        foregroundColor: { red: 0.33, green: 0.33, blue: 0.33 }
+                    }
                 }
             },
-            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)'
+            fields: 'userEnteredFormat(textFormat)'
         }
     };
 }
@@ -336,49 +337,43 @@ export async function exportToSheets(logs) {
         console.log(`📍 Sheet last occupied row: ${lastOccupiedRow}, will write starting at row ${nextRow}`);
 
         // ── Step 3: Prepare data ──────────────────────────────────
-        const dataRows = logs.map(log => [
+        // Build data rows (columns A-E), with batch info in column F on the LAST row only.
+        // This keeps all rows as pure data (filterable) while batch metadata lives in a side column.
+        const totalDuration = logs.reduce((sum, log) => sum + (log.durationMinutes || 0), 0);
+        const batchInfo = `📊 ${logs.length} sessions | Total: ${Math.round(totalDuration * 10) / 10} min`;
+
+        const dataRows = logs.map((log, index) => [
             log.date,            // e.g. "11/02/2026" — stays as text with RAW
             log.startTime,       // e.g. "10:30 pm"   — stays as text with RAW
             log.endTime,         // e.g. "11:15 pm"   — stays as text with RAW
             log.durationMinutes, // e.g. 2.5           — stays as number with RAW
-            exportTimestamp       // e.g. "11/02/2026 10:30 pm"
+            exportTimestamp,      // e.g. "11/02/2026 10:30 pm"
+            index === logs.length - 1 ? batchInfo : ''  // Batch info on last row only
         ]);
-
-        // Summary row
-        const totalDuration = logs.reduce((sum, log) => sum + (log.durationMinutes || 0), 0);
-        const summaryRow = [
-            `📊 Batch: ${logs.length} sessions`,
-            '',
-            'Total Duration:',
-            Math.round(totalDuration * 10) / 10,
-            exportTimestamp
-        ];
-
-        const allRows = [...dataRows, summaryRow];
 
         // ── Step 4: Write data at explicit row position ─────────────
         // Using values.update() with RAW input to:
         //   1. Prevent date/time auto-parsing (no more "46328" serial numbers)
         //   2. Write at an EXACT position (no more overwriting old data)
-        const writeRange = `Sheet1!A${nextRow}:E${nextRow + allRows.length - 1}`;
+        const writeRange = `Sheet1!A${nextRow}:F${nextRow + dataRows.length - 1}`;
 
         await sheets.spreadsheets.values.update({
             spreadsheetId: SHEET_ID,
             range: writeRange,
             valueInputOption: 'RAW',
-            resource: { values: allRows }
+            resource: { values: dataRows }
         });
 
-        console.log(`📝 Wrote ${allRows.length} rows to range ${writeRange}`);
+        console.log(`📝 Wrote ${dataRows.length} rows to range ${writeRange}`);
 
         // ── Step 5: Apply formatting ────────────────────────────────
         // Row indices are 0-indexed for the Sheets batchUpdate API
         const dataStartRow = nextRow - 1;  // Convert 1-indexed to 0-indexed
         const dataEndRow = dataStartRow + dataRows.length;
-        const summaryRowIndex = dataEndRow;
+        const lastDataRowIndex = dataEndRow - 1; // 0-indexed last data row
 
         formatRequests.push(...buildZebraStripeRequests(dataStartRow, dataEndRow));
-        formatRequests.push(buildSummaryRowFormatRequest(summaryRowIndex));
+        formatRequests.push(buildBatchInfoFormatRequest(lastDataRowIndex));
         formatRequests.push(buildDurationFormatRequest(dataStartRow, dataEndRow));
         formatRequests.push(buildAutoResizeRequest());
 
@@ -389,7 +384,7 @@ export async function exportToSheets(logs) {
             });
         }
 
-        console.log(`✅ Exported ${logs.length} logs to Google Sheets at rows ${nextRow}-${nextRow + allRows.length - 1} (${exportTimestamp})`);
+        console.log(`✅ Exported ${logs.length} logs to Google Sheets at rows ${nextRow}-${nextRow + dataRows.length - 1} (${exportTimestamp})`);
         return true;
     } catch (error) {
         const friendlyMessage = classifyExportError(error);
