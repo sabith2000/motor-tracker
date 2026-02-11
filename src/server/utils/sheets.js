@@ -14,37 +14,43 @@ import { isDBConnected } from './db.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const PROJECT_ROOT = path.join(__dirname, '..', '..', '..');
 
-// Paths (kept for reference, credentials file still uses local path for dev)
+// Credentials file path (local development fallback)
 const CREDENTIALS_FILE = path.join(PROJECT_ROOT, 'credentials.json');
 
-// Get Sheet ID from environment
+// Sheet ID from environment
 const SHEET_ID = process.env.GOOGLE_SHEET_ID;
 
-// Get credentials (supports both file and environment variable)
+// Column definitions
+const COLUMNS = ['Date', 'Start Time', 'End Time', 'Duration (min)', 'Exported At'];
+const COLUMN_COUNT = COLUMNS.length;
+
+// ============================================
+// Credentials & Auth
+// ============================================
+
+/**
+ * Get Google credentials from env var (production) or file (local dev).
+ */
 function getCredentials() {
-    // First, try environment variable (for cloud deployment)
+    // Try environment variable first (cloud deployment)
     if (process.env.GOOGLE_CREDENTIALS) {
         try {
             const creds = JSON.parse(process.env.GOOGLE_CREDENTIALS);
-            // Fix newlines in private_key if needed (common issue with env vars)
+            // Fix escaped newlines in private_key (common issue with env vars)
             if (creds.private_key) {
                 creds.private_key = creds.private_key.replace(/\\n/g, '\n');
             }
-            console.log('✅ Using GOOGLE_CREDENTIALS from environment');
             return creds;
         } catch (e) {
             console.error('❌ Failed to parse GOOGLE_CREDENTIALS env var:', e.message);
-            console.error('Make sure to paste the ENTIRE credentials.json content');
             return null;
         }
     }
 
-    // Fallback to file (for local development)
+    // Fallback to local credentials file
     if (fs.existsSync(CREDENTIALS_FILE)) {
-        console.log('✅ Using credentials.json file');
         return JSON.parse(fs.readFileSync(CREDENTIALS_FILE, 'utf8'));
     }
 
@@ -52,17 +58,17 @@ function getCredentials() {
     return null;
 }
 
-// Check if Google Sheets is configured
+/**
+ * Check if Google Sheets integration is fully configured.
+ */
 function isConfigured() {
     const creds = getCredentials();
-    const configured = creds !== null && SHEET_ID;
-    if (!configured) {
-        console.log('⚠️ Google Sheets not configured. SHEET_ID:', SHEET_ID ? 'set' : 'missing', 'Credentials:', creds ? 'set' : 'missing');
-    }
-    return configured;
+    return creds !== null && !!SHEET_ID;
 }
 
-// Get authenticated Sheets client
+/**
+ * Get authenticated Google Sheets API client.
+ */
 async function getSheetsClient() {
     const credentials = getCredentials();
 
@@ -79,104 +85,312 @@ async function getSheetsClient() {
     return google.sheets({ version: 'v4', auth: client });
 }
 
-// Export logs to Google Sheets
+// ============================================
+// Sheet Formatting Helpers
+// ============================================
+
+/**
+ * Format the header row: bold white text on blue background, centered.
+ */
+function buildHeaderFormatRequest() {
+    return {
+        repeatCell: {
+            range: {
+                sheetId: 0,
+                startRowIndex: 0,
+                endRowIndex: 1,
+                startColumnIndex: 0,
+                endColumnIndex: COLUMN_COUNT
+            },
+            cell: {
+                userEnteredFormat: {
+                    backgroundColor: { red: 0.16, green: 0.38, blue: 0.7 },
+                    textFormat: {
+                        bold: true,
+                        fontSize: 11,
+                        foregroundColor: { red: 1, green: 1, blue: 1 }
+                    },
+                    horizontalAlignment: 'CENTER',
+                    verticalAlignment: 'MIDDLE'
+                }
+            },
+            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)'
+        }
+    };
+}
+
+/**
+ * Freeze the first row so headers stay visible when scrolling.
+ */
+function buildFreezeRowRequest() {
+    return {
+        updateSheetProperties: {
+            properties: {
+                sheetId: 0,
+                gridProperties: { frozenRowCount: 1 }
+            },
+            fields: 'gridProperties.frozenRowCount'
+        }
+    };
+}
+
+/**
+ * Auto-resize all columns to fit content.
+ */
+function buildAutoResizeRequest() {
+    return {
+        autoResizeDimensions: {
+            dimensions: {
+                sheetId: 0,
+                dimension: 'COLUMNS',
+                startIndex: 0,
+                endIndex: COLUMN_COUNT
+            }
+        }
+    };
+}
+
+/**
+ * Apply alternating row colors (zebra stripes) to a range of data rows.
+ */
+function buildZebraStripeRequests(startRowIndex, endRowIndex) {
+    const requests = [];
+    const lightGray = { red: 0.95, green: 0.95, blue: 0.97 };
+    const white = { red: 1, green: 1, blue: 1 };
+
+    for (let row = startRowIndex; row < endRowIndex; row++) {
+        const bgColor = (row % 2 === 0) ? white : lightGray;
+        requests.push({
+            repeatCell: {
+                range: {
+                    sheetId: 0,
+                    startRowIndex: row,
+                    endRowIndex: row + 1,
+                    startColumnIndex: 0,
+                    endColumnIndex: COLUMN_COUNT
+                },
+                cell: {
+                    userEnteredFormat: {
+                        backgroundColor: bgColor
+                    }
+                },
+                fields: 'userEnteredFormat.backgroundColor'
+            }
+        });
+    }
+    return requests;
+}
+
+/**
+ * Format the summary row: bold text on a dark background.
+ */
+function buildSummaryRowFormatRequest(rowIndex) {
+    return {
+        repeatCell: {
+            range: {
+                sheetId: 0,
+                startRowIndex: rowIndex,
+                endRowIndex: rowIndex + 1,
+                startColumnIndex: 0,
+                endColumnIndex: COLUMN_COUNT
+            },
+            cell: {
+                userEnteredFormat: {
+                    backgroundColor: { red: 0.9, green: 0.93, blue: 0.98 },
+                    textFormat: {
+                        bold: true,
+                        fontSize: 10
+                    },
+                    horizontalAlignment: 'CENTER'
+                }
+            },
+            fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)'
+        }
+    };
+}
+
+/**
+ * Format the duration column with 1 decimal number format.
+ */
+function buildDurationFormatRequest(startRowIndex, endRowIndex) {
+    return {
+        repeatCell: {
+            range: {
+                sheetId: 0,
+                startRowIndex: startRowIndex,
+                endRowIndex: endRowIndex,
+                startColumnIndex: 3,
+                endColumnIndex: 4
+            },
+            cell: {
+                userEnteredFormat: {
+                    numberFormat: {
+                        type: 'NUMBER',
+                        pattern: '0.0'
+                    },
+                    horizontalAlignment: 'CENTER'
+                }
+            },
+            fields: 'userEnteredFormat(numberFormat,horizontalAlignment)'
+        }
+    };
+}
+
+// ============================================
+// Error Classification
+// ============================================
+
+/**
+ * Classify Google Sheets API errors into user-friendly messages.
+ */
+function classifyExportError(error) {
+    const message = error.message || '';
+    const code = error.code || error.status;
+
+    if (code === 401 || message.includes('invalid_grant') || message.includes('unauthorized')) {
+        return 'Authentication failed. Google credentials may be expired or invalid.';
+    }
+    if (code === 403 || message.includes('permission') || message.includes('forbidden')) {
+        return 'Permission denied. Ensure the service account has Editor access to the Google Sheet.';
+    }
+    if (code === 404 || message.includes('not found') || message.includes('notFound')) {
+        return 'Google Sheet not found. Verify GOOGLE_SHEET_ID is correct.';
+    }
+    if (code === 429 || message.includes('rate limit') || message.includes('quota')) {
+        return 'Google API rate limit exceeded. Please wait a few minutes and try again.';
+    }
+    if (message.includes('ENOTFOUND') || message.includes('ECONNREFUSED') || message.includes('network')) {
+        return 'Network error. Unable to reach Google Sheets API.';
+    }
+
+    return `Export failed: ${message}`;
+}
+
+// ============================================
+// Core Export Function
+// ============================================
+
+/**
+ * Export logs to Google Sheets with professional formatting.
+ *
+ * Features:
+ * - Auto-creates and formats header row on first export
+ * - Freezes header row for easy scrolling
+ * - Applies alternating row colors (zebra stripes) to new data
+ * - Adds a bold summary row at the end of each export batch
+ * - Auto-resizes columns to fit content
+ * - Formats duration column with 1 decimal precision
+ * - Classifies errors with helpful messages
+ */
 export async function exportToSheets(logs) {
     if (!isConfigured()) {
-        console.log('⚠️ Google Sheets not configured, skipping export');
         throw new Error('Google Sheets not configured. Check GOOGLE_CREDENTIALS and GOOGLE_SHEET_ID environment variables.');
     }
 
     if (!logs || logs.length === 0) {
-        console.log('No logs to export');
         throw new Error('No logs to export');
     }
 
     try {
         const sheets = await getSheetsClient();
+        const exportTimestamp = `${formatDateIST(new Date())} ${formatTimeIST(new Date())}`;
 
-        // Define headers
-        const headers = ['Date', 'Start Time', 'End Time', 'Duration (min)', 'Exported At'];
-
-        // Check if headers already exist (check first row)
+        // Check if headers already exist
         const existingData = await sheets.spreadsheets.values.get({
             spreadsheetId: SHEET_ID,
             range: 'Sheet1!A1:E1'
         });
 
         const firstRow = existingData.data.values?.[0] || [];
-        const headersExist = firstRow.length > 0 && firstRow[0] === headers[0];
+        const headersExist = firstRow.length > 0 && firstRow[0] === COLUMNS[0];
 
-        // If headers don't exist, add them first
+        // Setup formatting requests
+        const formatRequests = [];
+
+        // If headers don't exist, create them
         if (!headersExist) {
-            console.log('Adding headers to sheet...');
             await sheets.spreadsheets.values.update({
                 spreadsheetId: SHEET_ID,
                 range: 'Sheet1!A1:E1',
                 valueInputOption: 'USER_ENTERED',
-                resource: {
-                    values: [headers]
-                }
+                resource: { values: [COLUMNS] }
             });
 
-            // Format header row (bold + background color)
-            await sheets.spreadsheets.batchUpdate({
-                spreadsheetId: SHEET_ID,
-                resource: {
-                    requests: [
-                        {
-                            repeatCell: {
-                                range: {
-                                    sheetId: 0,
-                                    startRowIndex: 0,
-                                    endRowIndex: 1,
-                                    startColumnIndex: 0,
-                                    endColumnIndex: 5
-                                },
-                                cell: {
-                                    userEnteredFormat: {
-                                        backgroundColor: { red: 0.2, green: 0.5, blue: 0.8 },
-                                        textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
-                                        horizontalAlignment: 'CENTER'
-                                    }
-                                },
-                                fields: 'userEnteredFormat(backgroundColor,textFormat,horizontalAlignment)'
-                            }
-                        }
-                    ]
-                }
-            });
-            console.log('✅ Headers added and formatted');
+            formatRequests.push(buildHeaderFormatRequest());
+            formatRequests.push(buildFreezeRowRequest());
         }
 
+        // Get current row count to calculate where new data starts
+        const allData = await sheets.spreadsheets.values.get({
+            spreadsheetId: SHEET_ID,
+            range: 'Sheet1!A:A'
+        });
+        const currentRowCount = allData.data.values?.length || 1;
+
         // Prepare data rows
-        const rows = logs.map(log => [
+        const dataRows = logs.map(log => [
             log.date,
             log.startTime,
             log.endTime,
             log.durationMinutes,
-            `${formatDateIST(new Date())} ${formatTimeIST(new Date())}`
+            exportTimestamp
         ]);
 
-        // Append data below existing content (never overwrites)
+        // Create summary row
+        const totalDuration = logs.reduce((sum, log) => sum + (log.durationMinutes || 0), 0);
+        const summaryRow = [
+            `📊 Batch: ${logs.length} sessions`,
+            '',
+            'Total Duration:',
+            Math.round(totalDuration * 10) / 10,
+            exportTimestamp
+        ];
+
+        // Append data rows + summary row
+        const allRows = [...dataRows, summaryRow];
         await sheets.spreadsheets.values.append({
             spreadsheetId: SHEET_ID,
             range: 'Sheet1!A:E',
             valueInputOption: 'USER_ENTERED',
             insertDataOption: 'INSERT_ROWS',
-            resource: {
-                values: rows
-            }
+            resource: { values: allRows }
         });
 
-        console.log(`✅ Exported ${logs.length} logs to Google Sheets`);
+        // Calculate row indices for formatting (0-indexed for API)
+        const dataStartRow = currentRowCount;
+        const dataEndRow = dataStartRow + dataRows.length;
+        const summaryRowIndex = dataEndRow;
+
+        // Apply formatting
+        formatRequests.push(...buildZebraStripeRequests(dataStartRow, dataEndRow));
+        formatRequests.push(buildSummaryRowFormatRequest(summaryRowIndex));
+        formatRequests.push(buildDurationFormatRequest(dataStartRow, dataEndRow));
+        formatRequests.push(buildAutoResizeRequest());
+
+        if (formatRequests.length > 0) {
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId: SHEET_ID,
+                resource: { requests: formatRequests }
+            });
+        }
+
+        console.log(`✅ Exported ${logs.length} logs to Google Sheets (${exportTimestamp})`);
         return true;
     } catch (error) {
-        console.error('❌ Failed to export to Google Sheets:', error.message);
-        throw error;
+        const friendlyMessage = classifyExportError(error);
+        console.error('❌ Export failed:', friendlyMessage);
+        throw new Error(friendlyMessage);
     }
 }
 
-// Schedule daily export at midnight IST
+// ============================================
+// Scheduled Export (Cron)
+// ============================================
+
+/**
+ * Schedule daily export at midnight IST.
+ * Exports all unexported logs, marks them as exported, and updates archive.
+ */
 export function scheduleExport() {
     if (!isConfigured()) {
         console.log('⚠️ Google Sheets not configured, daily export disabled');
@@ -187,13 +401,11 @@ export function scheduleExport() {
         console.log('🕛 Running scheduled daily export...');
 
         try {
-            // Check if database is connected
             if (!isDBConnected()) {
                 console.error('❌ Database not connected, skipping scheduled export');
                 return;
             }
 
-            // Get unexported logs from MongoDB
             const logs = await getLogs(true); // unexported only
 
             if (logs.length > 0) {
@@ -214,12 +426,12 @@ export function scheduleExport() {
                     totalArchivedEntries: archive.totalArchivedEntries + logs.length
                 });
 
-                console.log(`✅ Daily export completed: ${logs.length} logs exported (kept in DB for history)`);
+                console.log(`✅ Daily export completed: ${logs.length} logs exported`);
             } else {
-                console.log('No logs to export today');
+                console.log('📭 No logs to export today');
             }
         } catch (error) {
-            console.error('❌ Daily export failed:', error);
+            console.error('❌ Daily export failed:', error.message);
         }
     }, {
         timezone: 'Asia/Kolkata'

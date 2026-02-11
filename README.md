@@ -3,7 +3,7 @@
 A modern, production-ready full-stack application to track and monitor home water pump motor usage.
 
 [![Live Demo](https://img.shields.io/badge/demo-live-brightgreen.svg)](https://motor-tracker.onrender.com/)
-![Version](https://img.shields.io/badge/version-v0.2.3-blue.svg)
+![Version](https://img.shields.io/badge/version-v0.2.4--dev-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 🔗 **Live Demo**: [motor-tracker.onrender.com](https://motor-tracker.onrender.com/)
@@ -15,7 +15,7 @@ A modern, production-ready full-stack application to track and monitor home wate
 - **Real-time Monitoring** - Live status (ON/OFF) and duration timer
 - **Multi-Device Sync** - Control from phone, view on PC instantly
 - **MongoDB Persistence** - Cloud-ready storage that survives restarts
-- **Google Sheets Export** - Automatic daily export + manual export
+- **Google Sheets Export** - Auto daily export + manual export with professional formatting
 - **Modern UI** - Dark mode, glassmorphism, glow effects
 - **Mobile-First** - Fully responsive design
 
@@ -52,6 +52,7 @@ Create a `.env` file:
 ```env
 MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/motor-tracker
 GOOGLE_SHEET_ID=your_sheet_id_here
+GOOGLE_CREDENTIALS={"type":"service_account",...}
 PORT=3001
 ```
 
@@ -79,7 +80,7 @@ npm run server     # Backend only
 |----------|----------|-------------|
 | `MONGODB_URI` | ✅ | MongoDB Atlas connection string |
 | `GOOGLE_SHEET_ID` | ❌ | Sheet ID for export |
-| `GOOGLE_CREDENTIALS` | ❌ | Entire `credentials.json` content |
+| `GOOGLE_CREDENTIALS` | ❌ | Entire `credentials.json` content as a string |
 
 ---
 
@@ -93,13 +94,30 @@ npm run server     # Backend only
 │   │   └── motor/           # ControlPanel, MotorStatus
 │   ├── hooks/               # Custom React hooks
 │   ├── server/
-│   │   ├── controllers/     # API logic
-│   │   ├── routes/          # Express routes
-│   │   └── utils/           # db.js, mongoStore.js, sheets.js
-│   ├── api.js               # Frontend API client
-│   └── App.jsx              # Main app
-└── server.js                # Express entry point
+│   │   ├── controllers/     # API route handlers
+│   │   ├── models/          # Mongoose schemas (Status, Log, Archive)
+│   │   ├── routes/          # Express route definitions
+│   │   └── utils/           # db.js, mongoStore.js, sheets.js, time.js
+│   ├── api.js               # Frontend API client with retry logic
+│   ├── App.jsx              # Main app component
+│   └── index.css            # Global styles & animations
+├── server.js                # Express entry point
+├── render.yaml              # Render deployment config
+└── package.json
 ```
+
+---
+
+## 📊 Google Sheets Export
+
+Motor Tracker exports run logs to Google Sheets with professional formatting:
+
+- **Frozen header row** — stays visible while scrolling
+- **Auto-sized columns** — no truncated data
+- **Alternating row colors** — easy-to-read zebra stripes
+- **Summary row** — total sessions and duration per export batch
+- **Duration precision** — 1 decimal place (e.g., `2.5 min`)
+- **Auto daily export** — midnight IST via cron
 
 ---
 
@@ -107,9 +125,10 @@ npm run server     # Backend only
 
 | Version | Feature | Status |
 |---------|---------|--------|
-| v0.2.x | MongoDB + SaaS UI | ✅ Done |
+| v0.2.x | MongoDB + SaaS UI + Sheets Export | ✅ Done |
 | v0.2.5 | History View | 🔜 Next |
 | v0.3.0 | PWA & Offline | 🔜 Planned |
+| v1.0.0 | Stable Release | 🎯 Target |
 
 ---
 

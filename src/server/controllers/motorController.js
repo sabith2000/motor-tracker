@@ -14,7 +14,40 @@ import {
 // Max logs before auto-export
 const MAX_LOG_ENTRIES = 100;
 
-// Check and archive logs if limit reached
+// ============================================
+// Shared Helpers
+// ============================================
+
+/**
+ * Export unexported logs to Google Sheets and update archive metadata.
+ * Shared by both manual export and auto-archive flows.
+ */
+async function exportAndArchiveLogs(logs) {
+    const logsToExport = logs.map(log => ({
+        date: log.date,
+        startTime: log.startTime,
+        endTime: log.endTime,
+        durationMinutes: log.durationMinutes
+    }));
+
+    await exportToSheets(logsToExport);
+
+    // Mark as exported in DB
+    await markLogsAsExported(logs.map(log => log._id));
+
+    // Update archive metadata
+    const archive = await getArchive();
+    await updateArchive({
+        lastExportDate: formatDateIST(new Date()),
+        totalArchivedEntries: archive.totalArchivedEntries + logs.length
+    });
+
+    return logs.length;
+}
+
+/**
+ * Check if log count exceeds limit and auto-archive to Google Sheets.
+ */
 async function checkAndArchiveLogs() {
     try {
         const logCount = await getLogCount();
@@ -25,29 +58,17 @@ async function checkAndArchiveLogs() {
             const logs = await getLogs(true); // Get unexported logs
             if (logs.length === 0) return;
 
-            await exportToSheets(logs.map(log => ({
-                date: log.date,
-                startTime: log.startTime,
-                endTime: log.endTime,
-                durationMinutes: log.durationMinutes
-            })));
-
-            // Mark as exported
-            await markLogsAsExported(logs.map(log => log._id));
-
-            // Update archive metadata
-            const archive = await getArchive();
-            await updateArchive({
-                lastExportDate: formatDateIST(new Date()),
-                totalArchivedEntries: archive.totalArchivedEntries + logs.length
-            });
-
-            console.log(`✅ Archived ${logs.length} logs to Google Sheets (kept in DB for history)`);
+            const exportedCount = await exportAndArchiveLogs(logs);
+            console.log(`✅ Archived ${exportedCount} logs to Google Sheets`);
         }
     } catch (error) {
         console.error('❌ Failed to archive logs:', error.message);
     }
 }
+
+// ============================================
+// Route Handlers
+// ============================================
 
 export const getHealth = (req, res) => {
     res.json({
@@ -68,7 +89,7 @@ export const getHeartbeat = async (req, res) => {
             elapsedSeconds = Math.floor((Date.now() - new Date(status.tempStartTime).getTime()) / 1000);
         }
 
-        // Update heartbeat
+        // Update heartbeat timestamp
         await updateStatus({ lastHeartbeat: new Date() });
 
         res.json({
@@ -154,7 +175,7 @@ export const stopMotor = async (req, res) => {
             lastStoppedTime: formatTimeIST(endTime)
         });
 
-        // Check if we need to archive
+        // Check if we need to auto-archive
         await checkAndArchiveLogs();
 
         res.json({
@@ -209,26 +230,11 @@ export const exportLogsEndpoint = async (req, res) => {
             return res.status(400).json({ success: false, error: 'No logs to export' });
         }
 
-        await exportToSheets(logs.map(log => ({
-            date: log.date,
-            startTime: log.startTime,
-            endTime: log.endTime,
-            durationMinutes: log.durationMinutes
-        })));
-
-        // Mark as exported
-        await markLogsAsExported(logs.map(log => log._id));
-
-        // Update archive
-        const archive = await getArchive();
-        await updateArchive({
-            lastExportDate: formatDateIST(new Date()),
-            totalArchivedEntries: archive.totalArchivedEntries + logs.length
-        });
+        const exportedCount = await exportAndArchiveLogs(logs);
 
         res.json({
             success: true,
-            message: `Exported ${logs.length} logs to Google Sheets`,
+            message: `Exported ${exportedCount} logs to Google Sheets`,
             exportedAt: `${formatDateIST(new Date())} ${formatTimeIST(new Date())}`
         });
     } catch (error) {

@@ -4,6 +4,34 @@ All notable changes to Motor Tracker are documented here.
 
 ---
 
+## [0.2.4-dev] - 2026-02-11
+
+### Added
+- **Models layer**: Extracted Mongoose schemas into `src/server/models/` (`Status.js`, `Log.js`, `Archive.js`)
+- **Google Sheets**: Frozen header row, auto-resized columns, zebra-stripe rows
+- **Google Sheets**: Summary row per export batch with total sessions & duration
+- **Google Sheets**: Duration column formatted to 1 decimal precision
+- **Google Sheets**: Specific error classification (auth/permission/rate-limit/network)
+- **Deployment**: Added `MONGODB_URI` and `GOOGLE_CREDENTIALS` to `render.yaml`
+
+### Fixed
+- **Bug**: Stale closure in `syncWithServer` — remote stop detection could miss state changes
+- **Bug**: Elapsed time not resetting to 0 after stopping motor
+- **Bug**: Duration precision — changed from whole-minute rounding to 1 decimal (e.g. `2.5 min`)
+- **Bug**: `SettingsModal` useEffect missing dependency causing lint warnings
+
+### Changed
+- Refactored `motorController.js` — extracted shared `exportAndArchiveLogs()` helper (removed ~25 lines of duplication)
+- Refactored `ControlPanel.jsx` — grouped 14 individual props into `motorState`/`motorActions` objects
+- Refactored `mongoStore.js` — imports models from `models/` directory instead of defining inline
+
+### Removed
+- Deleted `src/server/utils/fileStore.js` (legacy JSON storage, unused)
+- Deleted `data/` directory (`status.json`, `logs.json`, `archive.json` — replaced by MongoDB)
+- Deleted `src/assets/react.svg` and `public/vite.svg` (unused Vite defaults)
+
+---
+
 ## [0.2.3] - 2026-02-01
 
 ### Fixed

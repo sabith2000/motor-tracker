@@ -14,6 +14,12 @@ export function useMotorSync() {
     const heartbeatRef = useRef(null);
     const timerRef = useRef(null);
     const elapsedTimeRef = useRef(0);
+    const isRunningRef = useRef(false);
+
+    // Keep isRunningRef in sync with isRunning state
+    useEffect(() => {
+        isRunningRef.current = isRunning;
+    }, [isRunning]);
 
     const formatElapsedTime = useCallback((seconds) => {
         const hrs = Math.floor(seconds / 3600);
@@ -39,8 +45,8 @@ export function useMotorSync() {
         try {
             const data = await heartbeat();
 
-            // Check for remote stop
-            if (isRunning && !data.isRunning) {
+            // Use ref to avoid stale closure over isRunning
+            if (isRunningRef.current && !data.isRunning) {
                 console.log('📉 Remote stop detected');
                 setIsRunning(false);
                 setTempStartTime(null);
@@ -56,7 +62,7 @@ export function useMotorSync() {
                 setTempStartTime(data.startTime);
             }
 
-            // Sync elapsed time
+            // Sync elapsed time if drifted by more than 2 seconds
             if (Math.abs(data.elapsedSeconds - elapsedTimeRef.current) > 2) {
                 setElapsedTime(data.elapsedSeconds);
                 elapsedTimeRef.current = data.elapsedSeconds;
@@ -64,7 +70,7 @@ export function useMotorSync() {
         } catch (error) {
             console.error('Heartbeat failed:', error);
         }
-    }, [isRunning]);
+    }, []);
 
     // Initial Wakeup
     useEffect(() => {
@@ -83,7 +89,7 @@ export function useMotorSync() {
                         toast.success(`Motor is running since ${data.startTimeFormatted}`, { icon: '⚡', duration: 4000 });
                     }
                 }
-            } catch (error) {
+            } catch {
                 if (isMounted) {
                     setServerError('Could not connect to server.');
                     setIsServerWaking(false);

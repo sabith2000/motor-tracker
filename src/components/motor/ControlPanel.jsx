@@ -2,21 +2,19 @@ import toast from 'react-hot-toast'
 import { startMotor, stopMotor } from '../../api'
 
 export default function ControlPanel({
-    isRunning,
-    setIsRunning,
-    isProcessing,
-    setIsProcessing,
-    isOffline,
-    elapsedTime,
-    startTimeFormatted,
-    formatElapsedTime,
-    syncWithServer,
-    setTempStartTime,
-    setElapsedTime,
-    elapsedTimeRef,
-    setLastActionTime,
-    lastActionTime
+    motorState,
+    motorActions
 }) {
+    const {
+        isRunning, isProcessing, isOffline,
+        elapsedTime, startTimeFormatted, lastActionTime
+    } = motorState;
+
+    const {
+        setIsRunning, setIsProcessing, setTempStartTime,
+        setElapsedTime, setLastActionTime, formatElapsedTime,
+        syncWithServer, elapsedTimeRef
+    } = motorActions;
 
     const handleButtonClick = async () => {
         if (isProcessing || isOffline) {
@@ -45,6 +43,8 @@ export default function ControlPanel({
                 if (result.success) {
                     setIsRunning(false)
                     setTempStartTime(null)
+                    setElapsedTime(0)
+                    elapsedTimeRef.current = 0
                     setLastActionTime(result.log.endTime)
                     toast.success(`Motor stopped. Ran for ${result.log.durationMinutes} minutes`, { icon: '🔴' })
                     setTimeout(syncWithServer, 500)

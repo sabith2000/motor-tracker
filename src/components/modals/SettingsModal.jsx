@@ -9,26 +9,26 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
 
     // Fetch stats when modal opens
     useEffect(() => {
-        if (isOpen && !isOffline) {
-            fetchStats()
-        }
-    }, [isOpen, isOffline])
+        if (!isOpen || isOffline) return
 
-    const fetchStats = async () => {
-        setIsLoadingStats(true)
-        try {
-            const data = await getLogs()
-            const logs = data.logs || []
-            setStats({
-                totalSessions: data.count || logs.length,
-                lastRun: logs.length > 0 ? `${logs[0].date} ${logs[0].endTime}` : null
-            })
-        } catch (error) {
-            console.error('Failed to fetch stats:', error)
-        } finally {
-            setIsLoadingStats(false)
+        async function fetchStats() {
+            setIsLoadingStats(true)
+            try {
+                const data = await getLogs()
+                const logs = data.logs || []
+                setStats({
+                    totalSessions: data.count || logs.length,
+                    lastRun: logs.length > 0 ? `${logs[0].date} ${logs[0].endTime}` : null
+                })
+            } catch (error) {
+                console.error('Failed to fetch stats:', error)
+            } finally {
+                setIsLoadingStats(false)
+            }
         }
-    }
+
+        fetchStats()
+    }, [isOpen, isOffline])
 
     if (!isOpen) return null
 

@@ -9,14 +9,14 @@ import ConfirmationModal from './components/modals/ConfirmationModal'
 import { useMotorSync } from './hooks/useMotorSync'
 
 // App version
-const APP_VERSION = '0.2.3'
+const APP_VERSION = '0.2.4-dev'
 
 function App() {
   const {
-    isRunning, setIsRunning, tempStartTime, setTempStartTime,
+    isRunning, setIsRunning, setTempStartTime,
     elapsedTime, setElapsedTime, lastActionTime, setLastActionTime,
     isServerWaking, serverError, syncWithServer,
-    heartbeatRef, elapsedTimeRef, timerRef,
+    heartbeatRef, elapsedTimeRef,
     getStartTimeFormatted, formatElapsedTime
   } = useMotorSync();
 
@@ -83,7 +83,7 @@ function App() {
     const intervalTime = isRunning ? 3000 : 15000;
     heartbeatRef.current = setInterval(syncWithServer, intervalTime);
     return () => { if (heartbeatRef.current) clearInterval(heartbeatRef.current); };
-  }, [isRunning, isOffline, isPageVisible, syncWithServer]);
+  }, [isRunning, isOffline, isPageVisible, syncWithServer, heartbeatRef]);
 
   // Connection state
   const isConnected = !isOffline && !isServerWaking && !serverError;
@@ -168,20 +168,24 @@ function App() {
       <MotorStatus isRunning={isRunning} />
 
       <ControlPanel
-        isRunning={isRunning}
-        setIsRunning={setIsRunning}
-        isProcessing={isProcessing}
-        setIsProcessing={setIsProcessing}
-        isOffline={isOffline}
-        elapsedTime={elapsedTime}
-        startTimeFormatted={getStartTimeFormatted()}
-        formatElapsedTime={formatElapsedTime}
-        syncWithServer={syncWithServer}
-        setTempStartTime={setTempStartTime}
-        setElapsedTime={setElapsedTime}
-        elapsedTimeRef={elapsedTimeRef}
-        setLastActionTime={setLastActionTime}
-        lastActionTime={lastActionTime}
+        motorState={{
+          isRunning,
+          isProcessing,
+          isOffline,
+          elapsedTime,
+          startTimeFormatted: getStartTimeFormatted(),
+          lastActionTime
+        }}
+        motorActions={{
+          setIsRunning,
+          setIsProcessing,
+          setTempStartTime,
+          setElapsedTime,
+          setLastActionTime,
+          formatElapsedTime,
+          syncWithServer,
+          elapsedTimeRef
+        }}
       />
 
       {!lastActionTime && !isRunning && (

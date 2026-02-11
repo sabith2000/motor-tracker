@@ -18,8 +18,8 @@ export function formatTimeIST(date) {
     });
 }
 
-// Calculate duration in minutes
+// Calculate duration in minutes (1 decimal precision)
 export function calculateDurationMinutes(startTime, endTime) {
     const diff = new Date(endTime) - new Date(startTime);
-    return Math.round(diff / (1000 * 60));
+    return Math.round((diff / (1000 * 60)) * 10) / 10;
 }

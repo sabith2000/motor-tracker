@@ -1,39 +1,7 @@
-import mongoose from 'mongoose';
+import Status from '../models/Status.js';
+import Log from '../models/Log.js';
+import Archive from '../models/Archive.js';
 import { isDBConnected } from './db.js';
-
-// ============================================
-// Schemas
-// ============================================
-
-const statusSchema = new mongoose.Schema({
-    isRunning: { type: Boolean, default: false },
-    tempStartTime: { type: Date, default: null },
-    lastStoppedTime: { type: String, default: null },
-    lastHeartbeat: { type: Date, default: null }
-}, { timestamps: true });
-
-const logSchema = new mongoose.Schema({
-    date: { type: String, required: true },
-    startTime: { type: String, required: true },
-    endTime: { type: String, required: true },
-    durationMinutes: { type: Number, required: true },
-    rawStartTime: { type: Date, required: true, index: true },
-    rawEndTime: { type: Date, required: true },
-    exportedToSheets: { type: Boolean, default: false }
-}, { timestamps: true });
-
-const archiveSchema = new mongoose.Schema({
-    lastExportDate: { type: String, default: null },
-    totalArchivedEntries: { type: Number, default: 0 }
-}, { timestamps: true });
-
-// ============================================
-// Models
-// ============================================
-
-const Status = mongoose.model('Status', statusSchema);
-const Log = mongoose.model('Log', logSchema);
-const Archive = mongoose.model('Archive', archiveSchema);
 
 // ============================================
 // Status Operations
@@ -80,7 +48,7 @@ export async function updateStatus(updates) {
 // ============================================
 
 /**
- * Add a new log entry
+ * Add a new log entry (with duplicate detection)
  */
 export async function addLog(logEntry) {
     if (!isDBConnected()) {
@@ -115,7 +83,7 @@ export async function getLogs(unexportedOnly = false) {
 }
 
 /**
- * Get log count
+ * Get total log count
  */
 export async function getLogCount() {
     if (!isDBConnected()) {
@@ -125,7 +93,7 @@ export async function getLogCount() {
 }
 
 /**
- * Mark logs as exported
+ * Mark specific logs as exported to Google Sheets
  */
 export async function markLogsAsExported(logIds) {
     if (!isDBConnected()) {
@@ -155,7 +123,7 @@ export async function deleteExportedLogs() {
 // ============================================
 
 /**
- * Get archive metadata
+ * Get archive metadata (creates default if none exists)
  */
 export async function getArchive() {
     if (!isDBConnected()) {
@@ -189,11 +157,11 @@ export async function updateArchive(updates) {
 }
 
 // ============================================
-// Utility
+// Database Initialization
 // ============================================
 
 /**
- * Initialize database with default data if empty
+ * Initialize database with default documents if empty
  */
 export async function initializeDB() {
     try {
