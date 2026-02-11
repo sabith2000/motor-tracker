@@ -239,6 +239,7 @@ export const exportLogsEndpoint = async (req, res) => {
         });
     } catch (error) {
         console.error('Export failed:', error.message);
+        console.error('Stack:', error.stack);
         res.status(500).json({ success: false, error: error.message || 'Export failed' });
     }
 };
