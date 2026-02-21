@@ -4,6 +4,31 @@ All notable changes to Motor Tracker are documented here.
 
 ---
 
+## [0.3.0-serverless] - 2026-02-21
+
+### Added
+- **Vercel Serverless Functions**: 9 API endpoints as individual serverless handlers (`api/`)
+- **Vercel Cron Job**: Daily export at midnight IST via `api/cron/daily-export.js`
+- **Atomic Operations**: `atomicStart()`/`atomicStop()` using `findOneAndUpdate` for race-condition safety
+- **Serverless DB Connection**: Global connection caching pattern in `lib/db.js`
+- **CRON_SECRET**: Security token protecting the scheduled export endpoint
+- `vercel.json`: Framework config, cron schedule, function timeout settings
+
+### Changed
+- **Architecture**: Migrated from Express monolith to Vercel serverless functions
+- **Frontend API**: Switched from cross-origin (Render URL) to same-origin (`/api`)
+- **Project Structure**: Extracted `lib/`, `models/` to project root (from `src/server/`)
+- **Models**: Added `mongoose.models` recompilation guards for serverless
+- **Version**: Bumped to `0.3.0-serverless`
+
+### Removed
+- `server.js` (Express entry point)
+- `render.yaml` (Render deployment config)
+- `src/server/` directory (controllers, routes, utils)
+- Dependencies: `express`, `cors`, `node-cron`, `concurrently`
+
+---
+
 ## [0.2.7-dev] - 2026-02-12
 
 ### Fixed

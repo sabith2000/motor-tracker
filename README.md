@@ -2,11 +2,10 @@
 
 A modern, production-ready full-stack application to track and monitor home water pump motor usage.
 
-[![Live Demo](https://img.shields.io/badge/demo-live-brightgreen.svg)](https://motor-tracker.onrender.com/)
-![Version](https://img.shields.io/badge/version-v0.2.7--dev-blue.svg)
+![Version](https://img.shields.io/badge/version-v0.3.0--serverless-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
-🔗 **Live Demo**: [motor-tracker.onrender.com](https://motor-tracker.onrender.com/)
+🔗 **Live**: [motor-tracker-serverless.vercel.app](https://motor-tracker-serverless.vercel.app/)
 
 ---
 
@@ -25,7 +24,7 @@ A modern, production-ready full-stack application to track and monitor home wate
 
 | Frontend | Backend | Database | Deployment |
 |----------|---------|----------|------------|
-| React 19 + Vite | Node.js + Express | MongoDB Atlas | Render |
+| React 19 + Vite | Vercel Serverless Functions | MongoDB Atlas | Vercel |
 | TailwindCSS v4 | Google Sheets API | Mongoose ODM | |
 
 ---
@@ -36,6 +35,7 @@ A modern, production-ready full-stack application to track and monitor home wate
 - Node.js 20+
 - MongoDB Atlas account
 - Google Cloud Service Account (optional, for Sheets export)
+- Vercel account + CLI (`npm i -g vercel`)
 
 ### Installation
 
@@ -47,32 +47,31 @@ npm install
 
 ### Configuration
 
-Create a `.env` file:
+Set environment variables via Vercel CLI:
 
-```env
-MONGODB_URI=mongodb+srv://user:pass@cluster.mongodb.net/motor-tracker
-GOOGLE_SHEET_ID=your_sheet_id_here
-GOOGLE_CREDENTIALS={"type":"service_account",...}
-PORT=3001
+```bash
+vercel env add MONGODB_URI
+vercel env add GOOGLE_SHEET_ID
+vercel env add GOOGLE_CREDENTIALS
+vercel env add CRON_SECRET
+vercel env pull .env.local
 ```
 
 ### Run Locally
 
 ```bash
-npm run dev:all    # Frontend + Backend
-npm run dev        # Frontend only
-npm run server     # Backend only
+vercel dev    # Frontend + Serverless API at localhost:3000
 ```
 
 ---
 
 ## 🌍 Deployment
 
-### Render
+### Vercel
 
-1. **Create Web Service** → Connect GitHub repo
-2. **Build Command**: `npm install`
-3. **Start Command**: `node server.js`
+1. `vercel login` → `vercel link`
+2. Set environment variables (see above)
+3. `vercel --prod`
 
 ### Environment Variables
 
@@ -80,29 +79,42 @@ npm run server     # Backend only
 |----------|----------|-------------|
 | `MONGODB_URI` | ✅ | MongoDB Atlas connection string |
 | `GOOGLE_SHEET_ID` | ❌ | Sheet ID for export |
-| `GOOGLE_CREDENTIALS` | ❌ | Entire `credentials.json` content as a string |
+| `GOOGLE_CREDENTIALS` | ❌ | Service account JSON as string |
+| `CRON_SECRET` | ❌ | Protects the daily cron endpoint |
 
 ---
 
 ## 📁 Project Structure
 
 ```
-├── src/
-│   ├── components/          # React components
-│   │   ├── layout/          # Header, Footer
-│   │   ├── modals/          # Settings, Confirmation
-│   │   └── motor/           # ControlPanel, MotorStatus
-│   ├── hooks/               # Custom React hooks
-│   ├── server/
-│   │   ├── controllers/     # API route handlers
-│   │   ├── models/          # Mongoose schemas (Status, Log, Archive)
-│   │   ├── routes/          # Express route definitions
-│   │   └── utils/           # db.js, mongoStore.js, sheets.js, time.js
-│   ├── api.js               # Frontend API client with retry logic
-│   ├── App.jsx              # Main app component
-│   └── index.css            # Global styles & animations
-├── server.js                # Express entry point
-├── render.yaml              # Render deployment config
+├── api/                     # Vercel serverless functions
+│   ├── cron/
+│   │   └── daily-export.js  # Scheduled midnight IST export
+│   ├── health.js            # GET health check
+│   ├── heartbeat.js         # GET server time + motor state
+│   ├── status.js            # GET motor running state
+│   ├── start.js             # POST start motor (atomic)
+│   ├── stop.js              # POST stop motor (atomic)
+│   ├── logs.js              # GET all logs
+│   ├── export.js            # POST manual export
+│   ├── export-stats.js      # GET export statistics
+│   └── debug.js             # GET debug info
+├── lib/                     # Shared server-side utilities
+│   ├── db.js                # Serverless MongoDB connection
+│   ├── mongoStore.js        # Data access layer
+│   ├── sheets.js            # Google Sheets export
+│   └── time.js              # IST time utilities
+├── models/                  # Mongoose schemas
+│   ├── Status.js
+│   ├── Log.js
+│   └── Archive.js
+├── src/                     # React frontend
+│   ├── components/
+│   ├── hooks/
+│   ├── api.js               # Frontend API client
+│   ├── App.jsx
+│   └── index.css
+├── vercel.json              # Vercel config + cron
 └── package.json
 ```
 
@@ -117,7 +129,7 @@ Motor Tracker exports run logs to Google Sheets with professional formatting:
 - **Alternating row colors** — easy-to-read zebra stripes
 - **Summary row** — total sessions and duration per export batch
 - **Duration precision** — 1 decimal place (e.g., `2.5 min`)
-- **Auto daily export** — midnight IST via cron
+- **Auto daily export** — midnight IST via Vercel Cron
 
 ---
 
@@ -126,8 +138,8 @@ Motor Tracker exports run logs to Google Sheets with professional formatting:
 | Version | Feature | Status |
 |---------|---------|--------|
 | v0.2.x | MongoDB + SaaS UI + Sheets Export | ✅ Done |
-| v0.2.5 | History View | 🔜 Next |
-| v0.3.0 | PWA & Offline | 🔜 Planned |
+| v0.3.0 | Serverless Migration (Vercel) | ✅ Done |
+| v0.4.0 | History View | 🔜 Next |
 | v1.0.0 | Stable Release | 🎯 Target |
 
 ---
