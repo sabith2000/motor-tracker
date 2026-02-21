@@ -12,4 +12,4 @@ const logSchema = new mongoose.Schema({
     lastExportedAt: { type: Date, default: null }
 }, { timestamps: true });
 
-export default mongoose.model('Log', logSchema);
+export default mongoose.models.Log || mongoose.model('Log', logSchema);

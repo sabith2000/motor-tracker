@@ -7,4 +7,4 @@ const statusSchema = new mongoose.Schema({
     lastHeartbeat: { type: Date, default: null }
 }, { timestamps: true });
 
-export default mongoose.model('Status', statusSchema);
+export default mongoose.models.Status || mongoose.model('Status', statusSchema);

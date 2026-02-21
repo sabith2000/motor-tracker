@@ -5,4 +5,4 @@ const archiveSchema = new mongoose.Schema({
     totalArchivedEntries: { type: Number, default: 0 }
 }, { timestamps: true });
 
-export default mongoose.model('Archive', archiveSchema);
+export default mongoose.models.Archive || mongoose.model('Archive', archiveSchema);

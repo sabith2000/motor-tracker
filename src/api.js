@@ -1,8 +1,8 @@
-// API Base URL - auto-detects environment
-// Dev mode (Vite): hits local backend on port 3001
-// Production build: hits Render backend
-const API_BASE = import.meta.env.VITE_API_URL
-    || (import.meta.env.DEV ? 'http://localhost:3001/api' : 'https://motor-tracker-backend.onrender.com/api');
+// API Base URL — auto-detects environment
+// Vercel: same-origin (/api)
+// Dev mode (vercel dev): same-origin (/api)
+// Fallback for local Vite dev without vercel dev: hits localhost:3000
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 // Retry configuration
 const MAX_RETRIES = 3;
