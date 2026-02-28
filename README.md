@@ -2,7 +2,7 @@
 
 A modern, production-ready full-stack application to track and monitor home water pump motor usage.
 
-![Version](https://img.shields.io/badge/version-v0.3.0--serverless-blue.svg)
+![Version](https://img.shields.io/badge/version-v0.4.0-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 🔗 **Live**: [motor-tracker-serverless.vercel.app](https://motor-tracker-serverless.vercel.app/)
@@ -12,6 +12,7 @@ A modern, production-ready full-stack application to track and monitor home wate
 ## ✨ Features
 
 - **Real-time Monitoring** - Live status (ON/OFF) and duration timer
+- **History & Analytics** - Scrollable session history, daily breakdowns, and summary stats
 - **Multi-Device Sync** - Control from phone, view on PC instantly
 - **MongoDB Persistence** - Cloud-ready storage that survives restarts
 - **Google Sheets Export** - Auto daily export + manual export with professional formatting

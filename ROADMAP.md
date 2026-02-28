@@ -1,6 +1,6 @@
 # Motor Tracker — Roadmap
 
-> Last updated: 2026-02-25 | Current version: **v0.3.0-serverless**
+> Last updated: 2026-02-28 | Current version: **v0.4.0**
 
 ---
 
@@ -45,28 +45,28 @@
 
 ---
 
-## 🔜 v0.4.0 — History & Analytics (Next)
+## ✅ v0.4.0 — History & Analytics (Completed)
 
 **Goal:** Full-screen history view showing all motor sessions with filtering and usage stats.
 
 ### Backend
-- [ ] Add `getLogsPaginated(filter, page, limit)` to `mongoStore.js`
-- [ ] Add `getUsageStats(days)` aggregation pipeline to `mongoStore.js`
-- [ ] Update `api/logs.js` — add `?page=`, `?limit=`, `?date=` query params
-- [ ] Create `api/stats.js` — daily usage breakdown, totals, averages
+- [x] Add `getLogsPaginated(filter, page, limit)` to `mongoStore.js`
+- [x] Add `getUsageStats(days)` aggregation pipeline to `mongoStore.js`
+- [x] Update `api/logs.js` — add `?page=`, `?limit=`, `?date=` query params
+- [x] Create `api/stats.js` — daily usage breakdown, totals, averages
 
 ### Frontend
-- [ ] Add `getLogsPage()` and `getUsageStats()` to `src/api.js`
-- [ ] Create `HistoryModal.jsx`:
+- [x] Add `getLogsPage()` and `getUsageStats()` to `src/api.js`
+- [x] Create `HistoryModal.jsx`:
   - Summary stats bar (total sessions, total runtime, avg duration, longest)
   - Session list grouped by date (`Today`, `Yesterday`, `25 Feb 2026`)
   - Color-coded duration badges (green/amber/red)
   - Date filter chips (Today / 7 Days / 30 Days / All)
   - "Load more" pagination
   - Empty state
-- [ ] Add history button (clock icon) to `Header.jsx`
-- [ ] Wire `HistoryModal` into `App.jsx`
-- [ ] Add CSS for duration badges, date dividers, filter chips
+- [x] Add history button (clock icon) to `Header.jsx`
+- [x] Wire `HistoryModal` into `App.jsx`
+- [x] Add CSS for duration badges, date dividers, filter chips
 
 ### Deliverables
 - Pagination and date filtering on logs API
@@ -76,7 +76,7 @@
 
 ---
 
-## 📋 v0.5.0 — PWA & Offline Support
+## 🔜 v0.5.0 — PWA & Offline Support (Next)
 
 **Goal:** Installable app with offline resilience.
 
@@ -205,8 +205,8 @@
 | v0.1.x | ✅ Done | Foundation: Express, React, JSON storage, basic UI |
 | v0.2.x | ✅ Done | MongoDB, premium UI, Google Sheets export |
 | v0.3.0 | ✅ Done | Serverless migration to Vercel |
-| v0.4.0 | 🔜 Next | History & Analytics view |
-| v0.5.0 | 📋 Planned | PWA & offline support |
+| v0.4.0 | ✅ Done | History & Analytics view |
+| v0.5.0 | 🔜 Next | PWA & offline support |
 | v0.6.0 | 📋 Planned | Notifications & safety alerts |
 | v0.7.0 | 📋 Planned | Authentication & multi-user |
 | v0.8.0 | 📋 Planned | Dashboard & data visualization |

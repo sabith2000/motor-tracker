@@ -5,11 +5,12 @@ import Footer from './components/layout/Footer'
 import MotorStatus from './components/motor/MotorStatus'
 import ControlPanel from './components/motor/ControlPanel'
 import SettingsModal from './components/modals/SettingsModal'
+import HistoryModal from './components/modals/HistoryModal'
 import ConfirmationModal from './components/modals/ConfirmationModal'
 import { useMotorSync } from './hooks/useMotorSync'
 
 // App version
-const APP_VERSION = '0.3.0-serverless'
+const APP_VERSION = '0.4.0'
 
 function App() {
   const {
@@ -24,6 +25,7 @@ function App() {
   const [isPageVisible, setIsPageVisible] = useState(!document.hidden);
   const [toastPosition, setToastPosition] = useState('bottom-center');
   const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Confirmation Modal State
@@ -155,7 +157,16 @@ function App() {
         </div>
       )}
 
-      <Header isConnected={isConnected} onSettingsClick={() => setShowSettings(true)} />
+      <Header
+        isConnected={isConnected}
+        onSettingsClick={() => setShowSettings(true)}
+        onHistoryClick={() => setShowHistory(true)}
+      />
+
+      <HistoryModal
+        isOpen={showHistory}
+        onClose={() => setShowHistory(false)}
+      />
 
       <SettingsModal
         isOpen={showSettings}

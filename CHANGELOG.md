@@ -4,6 +4,24 @@ All notable changes to Motor Tracker are documented here.
 
 ---
 
+## [0.4.0] - 2026-02-28
+
+### Added
+- **Analytics API**: New `/api/stats` endpoint returning daily usage breakdown, averages, and totals
+- **History API**: Modified `/api/logs` endpoint with pagination (`page`, `limit`) and date filtering
+- **History View**: New full-screen `HistoryModal` accessible via header clock icon
+- **Usage Stats**: Display of total sessions, total runtime, avg duration, and longest session
+- **Daily Breakdown**: Visual text-graph of daily motor runtime and session count
+- **Session List**: Scrollable paginated list of all motor events grouped by date, color-coded by duration (green/amber/red)
+- **Filters**: Quick filter chips to view 'Today', 'Last 7 Days', 'Last 30 Days' or 'All Time'
+- **Data Layer**: Extended `mongoStore.js` with `getLogsPaginated` and `getUsageStats` aggregation pipelines
+
+### Changed
+- **Header UI**: Added a dedicated history button next to the settings gear
+- **Architecture**: No external charting libraries needed, keeping bundle size minimal
+
+---
+
 ## [0.3.0-serverless] - 2026-02-21
 
 ### Added

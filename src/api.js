@@ -90,6 +90,20 @@ export async function getExportStats() {
     return fetchWithRetry(`${API_BASE}/export-stats`);
 }
 
+// Get paginated logs for History View
+export async function getLogsPage(page = 1, limit = 20, date = null) {
+    let url = `${API_BASE}/logs?page=${page}&limit=${limit}`;
+    if (date) url += `&date=${encodeURIComponent(date)}`;
+    return fetchWithRetry(url);
+}
+
+// Get usage analytics (total and daily breakdown)
+export async function getUsageStats(days = null) {
+    let url = `${API_BASE}/stats`;
+    if (days) url += `?days=${days}`;
+    return fetchWithRetry(url);
+}
+
 // Heartbeat - get server time and current status
 export async function heartbeat() {
     return fetchWithRetry(`${API_BASE}/heartbeat`);
