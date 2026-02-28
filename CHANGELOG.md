@@ -4,6 +4,28 @@ All notable changes to Motor Tracker are documented here.
 
 ---
 
+## [0.4.2] - 2026-02-28
+
+### Fixed
+- **History Modal Glitch**: Filter chip changes no longer flash skeleton loaders — old data stays visible at 50% opacity during refetch (stale-while-revalidate pattern)
+- **Division by Zero**: Daily breakdown chart width calculation now guards against `longestSession` being zero
+
+### Improved
+- **Loading UX**: Separated "Load More" loading from filter-change loading; added proper skeleton rows for session list on first load
+- **Filter Bar**: Chips are disabled during transitions with a subtle spinner indicator
+- **Transitions**: All data sections fade smoothly via CSS `transition-opacity`
+
+---
+
+## [0.4.1] - 2026-02-28
+
+### Fixed
+- **Blank Screen Bug**: Added missing `getLogsPaginated` import in `api/logs.js` — the root cause of the production crash
+- **History Button**: Added missing `onHistoryClick` prop destructuring in `Header.jsx`
+- **Dead Code**: Removed unused `dailyPipeline` variable from `mongoStore.js`
+
+---
+
 ## [0.4.0] - 2026-02-28
 
 ### Added
