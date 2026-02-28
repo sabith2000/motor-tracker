@@ -28,10 +28,11 @@ export default async function handler(req, res) {
             message: `Exported ${exportedCount} logs to Google Sheets`,
             mode,
             exportedCount,
-            exportedAt: `${formatDateIST(new Date())} ${formatTimeIST(new Date())}`
+            exportedAt: new Date().toISOString()
         });
     } catch (error) {
         console.error('Export failed:', error.message);
         res.status(500).json({ success: false, error: error.message || 'Export failed' });
     }
 }
+

@@ -4,6 +4,26 @@ All notable changes to Motor Tracker are documented here.
 
 ---
 
+## [0.4.4] - 2026-02-28
+
+### Fixed
+- **Export Crash**: Removed undefined `formatDateIST`/`formatTimeIST` references in `export.js` (would crash on every manual export)
+- **Cron Duplication**: `daily-export.js` now uses shared `exportAndArchiveLogs` helper instead of duplicating 4 manual calls
+- **Atomicity**: `exportHelper.js` wraps `markLogsAsExported` in try/catch — if marking fails after successful Sheets write, logs a warning but doesn't throw
+- **Concurrent Exports**: `markLogsAsExported` now only marks logs still flagged `exportedToSheets: false`, preventing double-marking from race conditions
+- **`lastExportDate`**: Changed from `String` to `Date` in MongoDB for accurate time storage and formatting
+
+### Added
+- **"Not Configured" Banner**: Settings modal shows amber warning with env var names when Google Sheets isn't set up; export buttons are hidden
+- **Export Time Display**: Last export date now shows date AND time (e.g., "28/02/2026, 12:00 am")
+- **`configured` Field**: `/api/export-stats` response includes `configured: true/false` for frontend state management
+- **Sheet Tab Constant**: `SHEET_TAB_NAME` in `sheets.js` replaces 5 hardcoded `'Sheet1'` references
+
+### Improved
+- **Auto-archive Logging**: `stop.js` logs the count of failing logs for better traceability
+
+---
+
 ## [0.4.3] - 2026-02-28
 
 ### Added

@@ -1,6 +1,6 @@
 # Motor Tracker — Roadmap
 
-> Last updated: 2026-02-28 | Current version: **v0.4.3**
+> Last updated: 2026-02-28 | Current version: **v0.4.4**
 
 ---
 

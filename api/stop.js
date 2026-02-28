@@ -20,7 +20,7 @@ async function checkAndArchiveLogs() {
             console.log(`✅ Archived ${exportedCount} logs to Google Sheets`);
         }
     } catch (error) {
-        console.error('❌ Failed to archive logs:', error.message);
+        console.error(`❌ Failed to archive ${await getLogCount()} logs:`, error.message);
     }
 }
 

@@ -1,7 +1,7 @@
 import mongoose from 'mongoose';
 
 const archiveSchema = new mongoose.Schema({
-    lastExportDate: { type: String, default: null },
+    lastExportDate: { type: Date, default: null },
     totalArchivedEntries: { type: Number, default: 0 }
 }, { timestamps: true });
 

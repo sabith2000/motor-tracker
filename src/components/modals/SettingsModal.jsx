@@ -29,6 +29,8 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
 
     if (!isOpen) return null
 
+    const isConfigured = stats?.configured !== false // treat undefined/null as configured (backwards compat)
+
     const handleExportNew = () => {
         if (isOffline) {
             toast.error('Cannot export while offline')
@@ -111,6 +113,7 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
                     <button
                         onClick={onClose}
                         className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
+                        aria-label="Close settings"
                     >
                         <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -119,6 +122,21 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
                 </div>
 
                 <div className="p-5 space-y-4">
+                    {/* Not Configured Banner */}
+                    {!isLoadingStats && !isConfigured && (
+                        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex items-start gap-3">
+                            <svg className="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                            </svg>
+                            <div>
+                                <p className="text-amber-400 text-sm font-medium">Google Sheets Not Configured</p>
+                                <p className="text-slate-400 text-xs mt-1">
+                                    Set <code className="text-slate-300">GOOGLE_CREDENTIALS</code> and <code className="text-slate-300">GOOGLE_SHEET_ID</code> environment variables to enable export.
+                                </p>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Export Stats Card */}
                     <div className="stat-card rounded-xl p-4">
                         <h3 className="text-sm font-medium text-slate-400 mb-3 flex items-center gap-2">
@@ -160,62 +178,64 @@ export default function SettingsModal({ isOpen, onClose, isOffline, setConfirmat
                         )}
                     </div>
 
-                    {/* Export Actions */}
-                    <div className="stat-card rounded-xl p-4">
-                        <h3 className="text-sm font-medium text-slate-400 mb-2 flex items-center gap-2">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                            </svg>
-                            Export to Google Sheets
-                        </h3>
-                        <p className="text-slate-500 text-xs mb-3">
-                            Auto-exports every midnight IST. Manual export options below.
-                        </p>
-
-                        <div className="space-y-2">
-                            {/* Export New Logs */}
-                            <button
-                                onClick={handleExportNew}
-                                disabled={isExporting || isOffline || (stats && stats.unexportedCount === 0)}
-                                className={`w-full py-2.5 px-4 rounded-lg text-white text-sm font-medium transition-all ${isExporting || isOffline || (stats && stats.unexportedCount === 0)
-                                    ? 'bg-slate-600 cursor-not-allowed opacity-60'
-                                    : 'bg-green-600 hover:bg-green-500 active:scale-[0.98]'
-                                    }`}
-                            >
-                                {isExporting && exportMode === 'new' ? (
-                                    <span className="flex items-center justify-center gap-2">
-                                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                                        Exporting...
-                                    </span>
-                                ) : (
-                                    `📊 Export New Logs${stats?.unexportedCount ? ` (${stats.unexportedCount})` : ''}`
-                                )}
-                            </button>
-
-                            {/* Re-export All */}
-                            <button
-                                onClick={handleReExportAll}
-                                disabled={isExporting || isOffline || (stats && stats.exportedCount === 0)}
-                                className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all border ${isExporting || isOffline || (stats && stats.exportedCount === 0)
-                                    ? 'border-slate-600 text-slate-500 cursor-not-allowed opacity-60'
-                                    : 'border-amber-600/50 text-amber-400 hover:bg-amber-600/10 active:scale-[0.98]'
-                                    }`}
-                            >
-                                {isExporting && exportMode === 'force' ? (
-                                    <span className="flex items-center justify-center gap-2">
-                                        <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
-                                        Re-exporting...
-                                    </span>
-                                ) : (
-                                    `🔄 Re-export Logs${stats?.exportedCount ? ` (${stats.exportedCount})` : ''}`
-                                )}
-                            </button>
-
-                            <p className="text-slate-600 text-xs text-center mt-1">
-                                Re-export will create duplicate entries in the sheet
+                    {/* Export Actions — only show when configured */}
+                    {isConfigured && (
+                        <div className="stat-card rounded-xl p-4">
+                            <h3 className="text-sm font-medium text-slate-400 mb-2 flex items-center gap-2">
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                                </svg>
+                                Export to Google Sheets
+                            </h3>
+                            <p className="text-slate-500 text-xs mb-3">
+                                Auto-exports every midnight IST. Manual export options below.
                             </p>
+
+                            <div className="space-y-2">
+                                {/* Export New Logs */}
+                                <button
+                                    onClick={handleExportNew}
+                                    disabled={isExporting || isOffline || (stats && stats.unexportedCount === 0)}
+                                    className={`w-full py-2.5 px-4 rounded-lg text-white text-sm font-medium transition-all ${isExporting || isOffline || (stats && stats.unexportedCount === 0)
+                                        ? 'bg-slate-600 cursor-not-allowed opacity-60'
+                                        : 'bg-green-600 hover:bg-green-500 active:scale-[0.98]'
+                                        }`}
+                                >
+                                    {isExporting && exportMode === 'new' ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                                            Exporting...
+                                        </span>
+                                    ) : (
+                                        `📊 Export New Logs${stats?.unexportedCount ? ` (${stats.unexportedCount})` : ''}`
+                                    )}
+                                </button>
+
+                                {/* Re-export All */}
+                                <button
+                                    onClick={handleReExportAll}
+                                    disabled={isExporting || isOffline || (stats && stats.exportedCount === 0)}
+                                    className={`w-full py-2 px-4 rounded-lg text-sm font-medium transition-all border ${isExporting || isOffline || (stats && stats.exportedCount === 0)
+                                        ? 'border-slate-600 text-slate-500 cursor-not-allowed opacity-60'
+                                        : 'border-amber-600/50 text-amber-400 hover:bg-amber-600/10 active:scale-[0.98]'
+                                        }`}
+                                >
+                                    {isExporting && exportMode === 'force' ? (
+                                        <span className="flex items-center justify-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-amber-400 border-t-transparent rounded-full animate-spin" />
+                                            Re-exporting...
+                                        </span>
+                                    ) : (
+                                        `🔄 Re-export Logs${stats?.exportedCount ? ` (${stats.exportedCount})` : ''}`
+                                    )}
+                                </button>
+
+                                <p className="text-slate-600 text-xs text-center mt-1">
+                                    Re-export will create duplicate entries in the sheet
+                                </p>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     {/* About Section */}
                     <div className="pt-3 border-t border-slate-700/50">
