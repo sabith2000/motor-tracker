@@ -4,6 +4,28 @@ All notable changes to Motor Tracker are documented here.
 
 ---
 
+## [0.4.3] - 2026-02-28
+
+### Added
+- **Delete Session**: Trash icon on each session row with single confirmation dialog
+- **Clear All Sessions**: Red button at bottom of history with double confirmation (must type `DELETE`)
+- **Delete API**: New `DELETE /api/logs-delete` endpoint (`?id=<logId>` or `?all=true`)
+- `deleteLog()` and `deleteAllLogs()` data layer functions in `mongoStore.js`
+- `deleteSession()` and `clearAllSessions()` frontend API functions
+- Typed confirmation support in `ConfirmationModal` (`requireTypedConfirmation` prop)
+
+### Fixed
+- **Today Filter**: Now uses IST midnight as cutoff instead of `now - 24h`
+- **Heartbeat Optimization**: Only writes `lastHeartbeat` to DB when motor is running (eliminates ~90% unnecessary writes)
+- **HTTP Method Guards**: Added `GET`-only guards to `logs`, `stats`, `heartbeat`, and `export-stats` endpoints
+
+### Improved
+- **Code Deduplication**: Extracted shared `exportAndArchiveLogs()` into `lib/exportHelper.js`
+- **Accessibility**: Added `aria-label` to all interactive elements in History modal
+- **Focus Management**: `ConfirmationModal` now auto-focuses cancel button on open
+
+---
+
 ## [0.4.2] - 2026-02-28
 
 ### Fixed

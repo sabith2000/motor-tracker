@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getLogsPage, getUsageStats } from '../../api';
+import { getLogsPage, getUsageStats, deleteSession, clearAllSessions } from '../../api';
 import toast from 'react-hot-toast';
 
-export default function HistoryModal({ isOpen, onClose }) {
+export default function HistoryModal({ isOpen, onClose, setConfirmation }) {
     // Current filter (null = all time, 1 = today, 7 = last 7 days, 30 = last 30 days)
     const [daysFilter, setDaysFilter] = useState(7);
 
@@ -17,16 +17,17 @@ export default function HistoryModal({ isOpen, onClose }) {
     const [hasMore, setHasMore] = useState(false);
     const [isLogsLoading, setIsLogsLoading] = useState(false);
     const [isLoadingMore, setIsLoadingMore] = useState(false);
-    const limit = 20;
 
     // Track whether we're transitioning (for opacity effect)
     const [isTransitioning, setIsTransitioning] = useState(false);
+
+    // Track deleting state per log ID
+    const [deletingId, setDeletingId] = useState(null);
 
     const modalBodyRef = useRef(null);
 
     // Fetch stats (stale-while-revalidate: old data stays visible)
     const fetchStats = useCallback(async (days) => {
-        // Only show full skeleton on first load, otherwise just dim
         if (!hasLoadedOnce) {
             setIsStatsLoading(true);
         } else {
@@ -69,6 +70,8 @@ export default function HistoryModal({ isOpen, onClose }) {
         }
     }, [hasLoadedOnce]);
 
+    const limit = 20;
+
     // Load data when modal opens or filter changes
     useEffect(() => {
         if (!isOpen) return;
@@ -86,6 +89,64 @@ export default function HistoryModal({ isOpen, onClose }) {
             setHasMore(false);
         }
     }, [isOpen]);
+
+    // Delete single session
+    const handleDeleteSession = (log) => {
+        setConfirmation({
+            isOpen: true,
+            title: 'Delete Session?',
+            message: `This will permanently delete the session from ${log.date}:\n${log.startTime} → ${log.endTime} (${log.durationMinutes} min)`,
+            confirmText: 'Delete',
+            isDangerous: true,
+            requireTypedConfirmation: null,
+            onConfirm: async () => {
+                setConfirmation(prev => ({ ...prev, isOpen: false }));
+                setDeletingId(log.id);
+                try {
+                    await deleteSession(log.id);
+                    // Remove from local state (optimistic)
+                    setLogs(prev => prev.filter(l => l.id !== log.id));
+                    toast.success('Session deleted', { icon: '🗑️' });
+                    // Refresh stats
+                    fetchStats(daysFilter);
+                } catch (error) {
+                    toast.error(error.message || 'Failed to delete session');
+                } finally {
+                    setDeletingId(null);
+                }
+            }
+        });
+    };
+
+    // Clear all sessions (double confirmation)
+    const handleClearAll = () => {
+        setConfirmation({
+            isOpen: true,
+            title: '⚠️ Clear All Sessions?',
+            message: `This will permanently delete ALL ${logs.length}+ motor sessions and reset your history.\n\nThis action cannot be undone.`,
+            confirmText: 'Yes, Clear All',
+            isDangerous: true,
+            requireTypedConfirmation: 'DELETE',
+            onConfirm: async () => {
+                setConfirmation(prev => ({ ...prev, isOpen: false }));
+                setIsTransitioning(true);
+                try {
+                    const result = await clearAllSessions();
+                    setLogs([]);
+                    setStats(null);
+                    setHasMore(false);
+                    setPage(1);
+                    toast.success(result.message || 'All sessions cleared', { icon: '🗑️', duration: 4000 });
+                    // Refresh stats to show zeros
+                    fetchStats(daysFilter);
+                } catch (error) {
+                    toast.error(error.message || 'Failed to clear sessions');
+                } finally {
+                    setIsTransitioning(false);
+                }
+            }
+        });
+    };
 
     if (!isOpen) return null;
 
@@ -111,7 +172,6 @@ export default function HistoryModal({ isOpen, onClose }) {
 
     // Show full skeleton only on very first load
     const showSkeleton = isStatsLoading && !stats;
-    // Dim content when transitioning between filters
     const contentOpacity = isTransitioning ? 'opacity-50' : 'opacity-100';
 
     return (
@@ -129,7 +189,7 @@ export default function HistoryModal({ isOpen, onClose }) {
                     <button
                         onClick={onClose}
                         className="p-2 hover:bg-slate-700 rounded-lg transition-colors"
-                        aria-label="Close"
+                        aria-label="Close history modal"
                     >
                         <svg className="w-6 h-6 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -145,11 +205,11 @@ export default function HistoryModal({ isOpen, onClose }) {
                             onClick={() => setDaysFilter(days)}
                             disabled={isTransitioning}
                             className={`filter-chip ${daysFilter === days ? 'filter-chip-active' : ''} ${isTransitioning ? 'pointer-events-none' : ''}`}
+                            aria-label={`Filter: ${getFilterLabel(days)}`}
                         >
                             {getFilterLabel(days)}
                         </button>
                     ))}
-                    {/* Subtle loading indicator next to filters */}
                     {isTransitioning && (
                         <div className="flex items-center ml-1">
                             <div className="w-3.5 h-3.5 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
@@ -258,7 +318,7 @@ export default function HistoryModal({ isOpen, onClose }) {
                                         </div>
                                         <div className="space-y-2">
                                             {groupedLogs[date].map(log => (
-                                                <div key={log.id} className="flex items-center justify-between p-3 bg-slate-800/60 hover:bg-slate-800 rounded-lg border border-slate-700/50 transition-colors">
+                                                <div key={log.id} className={`flex items-center justify-between p-3 bg-slate-800/60 hover:bg-slate-800 rounded-lg border border-slate-700/50 transition-all ${deletingId === log.id ? 'opacity-50 scale-95' : ''}`}>
                                                     <div className="flex items-center gap-3">
                                                         <div className={`p-2 rounded-full bg-slate-700 ${log.exportedToSheets ? 'text-green-400' : 'text-slate-400'}`} title={log.exportedToSheets ? 'Exported' : 'Pending Export'}>
                                                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -271,8 +331,21 @@ export default function HistoryModal({ isOpen, onClose }) {
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div className={`px-2.5 py-1 rounded-md text-xs font-semibold ${getDurationColor(log.durationMinutes)}`}>
-                                                        {log.durationMinutes} min
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`px-2.5 py-1 rounded-md text-xs font-semibold ${getDurationColor(log.durationMinutes)}`}>
+                                                            {log.durationMinutes} min
+                                                        </div>
+                                                        {/* Delete button */}
+                                                        <button
+                                                            onClick={() => handleDeleteSession(log)}
+                                                            disabled={deletingId === log.id}
+                                                            className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                                                            aria-label={`Delete session ${log.startTime} to ${log.endTime}`}
+                                                        >
+                                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
                                                     </div>
                                                 </div>
                                             ))}
@@ -295,6 +368,20 @@ export default function HistoryModal({ isOpen, onClose }) {
                                         ) : 'Load More Sessions'}
                                     </button>
                                 )}
+
+                                {/* Clear All Button */}
+                                <div className="pt-4 border-t border-slate-700/50">
+                                    <button
+                                        onClick={handleClearAll}
+                                        className="w-full py-2.5 rounded-xl border border-red-500/30 text-red-400 text-sm font-medium hover:bg-red-500/10 transition-colors flex justify-center items-center gap-2"
+                                        aria-label="Clear all motor sessions"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
+                                        Clear All Sessions
+                                    </button>
+                                </div>
                             </div>
                         )}
                     </div>

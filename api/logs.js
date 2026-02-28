@@ -5,6 +5,10 @@ import { getLogs, getLogsPaginated, getArchive, getLogCount } from '../lib/mongo
 const MAX_LOG_ENTRIES = 100;
 
 export default async function handler(req, res) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
     try {
         await connectDB();
 

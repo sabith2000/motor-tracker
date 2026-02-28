@@ -104,6 +104,16 @@ export async function getUsageStats(days = null) {
     return fetchWithRetry(url);
 }
 
+// Delete a single session by ID
+export async function deleteSession(id) {
+    return fetchWithRetry(`${API_BASE}/logs-delete?id=${id}`, { method: 'DELETE' });
+}
+
+// Clear all sessions
+export async function clearAllSessions() {
+    return fetchWithRetry(`${API_BASE}/logs-delete?all=true`, { method: 'DELETE' });
+}
+
 // Heartbeat - get server time and current status
 export async function heartbeat() {
     return fetchWithRetry(`${API_BASE}/heartbeat`);

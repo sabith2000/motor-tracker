@@ -10,7 +10,7 @@ import ConfirmationModal from './components/modals/ConfirmationModal'
 import { useMotorSync } from './hooks/useMotorSync'
 
 // App version
-const APP_VERSION = '0.4.2'
+const APP_VERSION = '0.4.3'
 
 function App() {
   const {
@@ -166,6 +166,7 @@ function App() {
       <HistoryModal
         isOpen={showHistory}
         onClose={() => setShowHistory(false)}
+        setConfirmation={setConfirmation}
       />
 
       <SettingsModal
@@ -218,6 +219,7 @@ function App() {
         message={confirmation.message}
         confirmText={confirmation.confirmText}
         isDangerous={confirmation.isDangerous}
+        requireTypedConfirmation={confirmation.requireTypedConfirmation || null}
         onConfirm={confirmation.onConfirm}
         onCancel={() => setConfirmation(prev => ({ ...prev, isOpen: false }))}
       />

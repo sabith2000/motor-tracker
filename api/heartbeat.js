@@ -3,6 +3,10 @@ import { getStatus, updateStatus } from '../lib/mongoStore.js';
 import { formatTimeIST } from '../lib/time.js';
 
 export default async function handler(req, res) {
+    if (req.method !== 'GET') {
+        return res.status(405).json({ error: 'Method not allowed' });
+    }
+
     try {
         await connectDB();
 
@@ -14,8 +18,11 @@ export default async function handler(req, res) {
             elapsedSeconds = Math.floor((Date.now() - new Date(status.tempStartTime).getTime()) / 1000);
         }
 
-        // Update heartbeat timestamp
-        await updateStatus({ lastHeartbeat: new Date() });
+        // Only write heartbeat when motor is running (preserves timing accuracy
+        // during active sessions without unnecessary DB writes when idle)
+        if (status.isRunning) {
+            await updateStatus({ lastHeartbeat: new Date() });
+        }
 
         res.json({
             serverTime,

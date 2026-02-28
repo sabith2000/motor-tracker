@@ -2,7 +2,7 @@
 
 A modern, production-ready full-stack application to track and monitor home water pump motor usage.
 
-![Version](https://img.shields.io/badge/version-v0.4.2-blue.svg)
+![Version](https://img.shields.io/badge/version-v0.4.3-blue.svg)
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 
 🔗 **Live**: [motor-tracker-serverless.vercel.app](https://motor-tracker-serverless.vercel.app/)

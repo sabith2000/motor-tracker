@@ -1,30 +1,6 @@
 import { connectDB } from '../lib/db.js';
-import { getLogs, markLogsAsExported, getArchive, updateArchive } from '../lib/mongoStore.js';
-import { exportToSheets } from '../lib/sheets.js';
-import { formatDateIST, formatTimeIST } from '../lib/time.js';
-
-/**
- * Export unexported logs to Google Sheets and update archive metadata.
- */
-async function exportAndArchiveLogs(logs) {
-    const logsToExport = logs.map(log => ({
-        date: log.date,
-        startTime: log.startTime,
-        endTime: log.endTime,
-        durationMinutes: log.durationMinutes
-    }));
-
-    await exportToSheets(logsToExport);
-    await markLogsAsExported(logs.map(log => log._id));
-
-    const archive = await getArchive();
-    await updateArchive({
-        lastExportDate: formatDateIST(new Date()),
-        totalArchivedEntries: archive.totalArchivedEntries + logs.length
-    });
-
-    return logs.length;
-}
+import { getLogs } from '../lib/mongoStore.js';
+import { exportAndArchiveLogs } from '../lib/exportHelper.js';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {

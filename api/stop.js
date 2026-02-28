@@ -1,36 +1,10 @@
 import { connectDB } from '../lib/db.js';
-import { atomicStop, addLog, getLogCount, getLogs, markLogsAsExported, updateArchive, getArchive } from '../lib/mongoStore.js';
+import { atomicStop, addLog, getLogCount, getLogs } from '../lib/mongoStore.js';
 import { formatDateIST, formatTimeIST, calculateDurationMinutes } from '../lib/time.js';
-import { exportToSheets } from '../lib/sheets.js';
+import { exportAndArchiveLogs } from '../lib/exportHelper.js';
 
 // Max logs before auto-export
 const MAX_LOG_ENTRIES = 100;
-
-/**
- * Export unexported logs to Google Sheets and update archive metadata.
- */
-async function exportAndArchiveLogs(logs) {
-    const logsToExport = logs.map(log => ({
-        date: log.date,
-        startTime: log.startTime,
-        endTime: log.endTime,
-        durationMinutes: log.durationMinutes
-    }));
-
-    await exportToSheets(logsToExport);
-
-    // Mark as exported in DB
-    await markLogsAsExported(logs.map(log => log._id));
-
-    // Update archive metadata
-    const archive = await getArchive();
-    await updateArchive({
-        lastExportDate: formatDateIST(new Date()),
-        totalArchivedEntries: archive.totalArchivedEntries + logs.length
-    });
-
-    return logs.length;
-}
 
 /**
  * Check if log count exceeds limit and auto-archive.
