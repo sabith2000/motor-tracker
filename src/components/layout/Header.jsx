@@ -1,4 +1,4 @@
-export default function Header({ isConnected = true, onSettingsClick }) {
+export default function Header({ isConnected = true, onSettingsClick, onHistoryClick }) {
     return (
         <header className="absolute top-0 left-0 right-0 z-40">
             {/* Top Bar with Status */}

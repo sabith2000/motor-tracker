@@ -1,5 +1,5 @@
 import { connectDB } from '../lib/db.js';
-import { getLogs, getArchive, getLogCount } from '../lib/mongoStore.js';
+import { getLogs, getLogsPaginated, getArchive, getLogCount } from '../lib/mongoStore.js';
 
 // Max logs before auto-export
 const MAX_LOG_ENTRIES = 100;
