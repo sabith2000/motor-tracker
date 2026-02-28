@@ -4,6 +4,13 @@ All notable changes to Motor Tracker are documented here.
 
 ---
 
+## [0.4.5] - 2026-02-28
+
+### Fixed
+- **AM/PM Casing**: `formatTimeIST` now produces uppercase "AM/PM" instead of lowercase "am/pm" (affects Settings modal, Google Sheets, and all time displays)
+
+---
+
 ## [0.4.4] - 2026-02-28
 
 ### Fixed
