@@ -4,6 +4,19 @@ All notable changes to Motor Tracker are documented here.
 
 ---
 
+## [0.4.6] - 2026-03-02
+
+### Added
+- **Runtime Safety Guards**: Tiered warning system for forgotten motor sessions
+  - **15 min**: Caution toast + live panel turns amber with warning message
+  - **30 min**: Critical toast + panel turns red with pulsing border
+  - **45 min**: Server-side auto-stop — motor is stopped, log entry created, archive check triggered
+- **Server-side Auto-Stop**: `heartbeat.js` detects elapsed ≥ 45 min and atomically stops the motor (works even when browser is closed and reopened)
+- **Color-transitioning Live Panel**: Info panel smoothly transitions green → amber → red based on `warningLevel`
+- **Immediate warnings on app open**: If motor is already past a threshold when opening the app, warnings fire immediately
+
+---
+
 ## [0.4.5] - 2026-02-28
 
 ### Fixed

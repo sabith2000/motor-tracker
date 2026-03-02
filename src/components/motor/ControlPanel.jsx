@@ -7,7 +7,8 @@ export default function ControlPanel({
 }) {
     const {
         isRunning, isProcessing, isOffline,
-        elapsedTime, startTimeFormatted, lastActionTime
+        elapsedTime, startTimeFormatted, lastActionTime,
+        warningLevel = 'normal'
     } = motorState;
 
     const {
@@ -67,11 +68,41 @@ export default function ControlPanel({
         }
     }
 
+    // Dynamic styles based on warning level
+    const panelStyles = {
+        normal: {
+            border: 'border-green-500/30',
+            shadow: 'shadow-green-500/10',
+            elapsed: 'text-yellow-400',
+            statusDot: 'bg-green-500',
+            statusText: 'text-green-300',
+            statusMessage: 'Motor is running fine'
+        },
+        warning: {
+            border: 'border-amber-500/50',
+            shadow: 'shadow-amber-500/15',
+            elapsed: 'text-amber-400',
+            statusDot: 'bg-amber-500',
+            statusText: 'text-amber-300',
+            statusMessage: '⚠️ Running for over 15 minutes'
+        },
+        critical: {
+            border: 'border-red-500/50 animate-pulse',
+            shadow: 'shadow-red-500/20',
+            elapsed: 'text-red-400',
+            statusDot: 'bg-red-500',
+            statusText: 'text-red-300',
+            statusMessage: '🔴 Running too long — stop the motor!'
+        }
+    };
+
+    const style = panelStyles[warningLevel] || panelStyles.normal;
+
     return (
         <>
             {/* Live Info Panel (Running) */}
             {isRunning && (
-                <div className="w-full max-w-sm mb-8 stat-card rounded-2xl p-5 border-green-500/30 shadow-lg shadow-green-500/10 animate-fade-in-up">
+                <div className={`w-full max-w-sm mb-8 stat-card rounded-2xl p-5 ${style.border} shadow-lg ${style.shadow} animate-fade-in-up transition-all duration-500`}>
                     <div className="space-y-3">
                         <div className="flex justify-between items-center">
                             <span className="text-base text-slate-400 flex items-center gap-2">
@@ -89,14 +120,14 @@ export default function ControlPanel({
                                 </svg>
                                 Running for
                             </span>
-                            <span className="text-2xl font-bold text-yellow-400 tabular-nums">
+                            <span className={`text-2xl font-bold ${style.elapsed} tabular-nums transition-colors duration-500`}>
                                 {formatElapsedTime(elapsedTime)}
                             </span>
                         </div>
                         <div className="pt-2 border-t border-slate-700/50">
-                            <p className="text-center text-green-300 text-sm flex items-center justify-center gap-2">
-                                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                                Motor is running fine
+                            <p className={`text-center ${style.statusText} text-sm flex items-center justify-center gap-2 transition-colors duration-500`}>
+                                <span className={`w-2 h-2 ${style.statusDot} rounded-full animate-pulse`} />
+                                {style.statusMessage}
                             </p>
                         </div>
                     </div>

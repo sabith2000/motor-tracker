@@ -10,7 +10,7 @@ import ConfirmationModal from './components/modals/ConfirmationModal'
 import { useMotorSync } from './hooks/useMotorSync'
 
 // App version
-const APP_VERSION = '0.4.5'
+const APP_VERSION = '0.4.6'
 
 function App() {
   const {
@@ -18,7 +18,8 @@ function App() {
     elapsedTime, setElapsedTime, lastActionTime, setLastActionTime,
     isServerWaking, serverError, syncWithServer,
     heartbeatRef, elapsedTimeRef,
-    getStartTimeFormatted, formatElapsedTime
+    getStartTimeFormatted, formatElapsedTime,
+    warningLevel
   } = useMotorSync();
 
   const [isOffline, setIsOffline] = useState(!navigator.onLine);
@@ -186,7 +187,8 @@ function App() {
           isOffline,
           elapsedTime,
           startTimeFormatted: getStartTimeFormatted(),
-          lastActionTime
+          lastActionTime,
+          warningLevel
         }}
         motorActions={{
           setIsRunning,
